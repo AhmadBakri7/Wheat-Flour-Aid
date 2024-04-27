@@ -34,11 +34,18 @@ int main(int argc, char* argv[]) {
         for (int i = 0; i < current_drop; i++) {
 
             if (drops[i].amplitude > 0) {
-                drops[i].amplitude--;
+
+                if (drops[i].amplitude < 100)
+                    drops[i].amplitude = 0;
+                else
+                    drops[i].amplitude -= 100;
+
                 printf("Amplitude (%d): %d\n", i, drops[i].amplitude);
+                
             } else {
                 AidPackage package;
                 package.package_type = CONTAINER;
+
                 package.weight = drops[i].weight;
 
                 // swap drops[i] with current_drop (last drop) (soft delete).
@@ -52,7 +59,7 @@ int main(int argc, char* argv[]) {
                     perror("Child: msgsend");
                     return 4;
                 }
-                printf("Package sent to collector from sky (%d) (Amp:%d) \n", i, drops[i].amplitude);
+                printf("Package (%d) sent to collector from sky\n", i);
             }
         }
     }
