@@ -1,5 +1,5 @@
 
-enum PACKAGE_TYPE {DROP = 1, CONTAINER = 2, KG_BAG = 3};
+enum PACKAGE_TYPE {DROP = 1, CONTAINER = 2, KG_BAG = 3, SORTER_VALUE = 100};
 
 typedef struct {
     long package_type; /* to whom this package is being sent (type) */
@@ -14,11 +14,28 @@ typedef struct {
     int amplitude;      /* height from surface */
 } AidDrop;
 
+typedef struct{
+    long type;
+    int familyIndex;
+} familyCritical;
 
-struct node{
-    AidDrop drop;
-    struct node* next;
+
+typedef struct{
+    long familyIndex;
+    int starvationRate;
+} familyStruct;
+
+
+typedef struct {
+    pid_t plane;
+    int amplitude;
+} AirSpace;
+
+
+union semun {
+    int              val;
+    struct semid_ds *buf;
+    ushort          *array;
 };
 
-typedef struct node ListNode;
-typedef ListNode* List;
+

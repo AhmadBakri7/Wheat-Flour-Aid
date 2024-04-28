@@ -51,12 +51,14 @@ int main(int argc, char* argv[]) {
             printf("Occupation shooting a missile at packages\n");
             fflush(stdout);
 
-            // shoot a worker
-            random_worker = select_from_range(0, size-1);
+            // kill a worker
+            if (size > 0) {
+                random_worker = select_from_range(0, size-1);
 
-            kill(workers[random_worker], SIGUSR2);
-            printf("Occupation shooting at worker %d\n", workers[random_worker]);
-            fflush(stdout);
+                kill(workers[random_worker], SIGUSR2);
+                printf("Occupation shooting at worker %d\n", workers[random_worker]);
+                fflush(stdout);
+            }
 
             sleep(1);
         }

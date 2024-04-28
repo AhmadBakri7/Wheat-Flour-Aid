@@ -4,39 +4,42 @@
 
 void missile_attack(int sig);
 
-int current_drop = 0;
+int current_drop;
+int threshold;
 AidDrop drops[100];
 
 
 int main(int argc, char* argv[]) {
 
-    if (argc < 2) {
+    if (argc < 3) {
         perror("Not Enough Args, plane.c");
         exit(-1);
     }
+
 
     if (signal(SIGUSR1, missile_attack) == SIG_ERR) {
         perror("Signal Sky Error");
         exit(SIGQUIT);
     }
 
-    int mid = atoi(argv[1]); /* the id for the message queue */
-
+    int mid = atoi(argv[1]);    /* the id for the message queue */
+    threshold = atoi(argv[2]);  /* exploded drops above threshold gets totally lost */
 
     struct msqid_ds buf;
 
+    current_drop = 0;
+
     while (1) {
 
-        if (msgctl(mid, IPC_STAT, &buf) == -1)
-            perror("COC DETECTED--------------------------------------->");
- 
+        msgctl(mid, IPC_STAT, &buf);
+        
         for (int i = 0; i < buf.msg_qnum; i++)
         {
             if ( msgrcv(mid, &drops[current_drop], BUFSIZ, DROP, 0) != -1 ) {
-                printf(
-                    "current_drop: %d, Message-type: %ld, Weight: %d, amplitude: %d, drop_number: %d\n",
-                    current_drop, drops[current_drop].package_type, drops[current_drop].weight, drops[current_drop].amplitude, drops[current_drop].package_number
-                );
+                // printf(
+                //     "current_drop: %d, Message-type: %ld, Weight: %d, amplitude: %d, drop_number: %d\n",
+                //     current_drop, drops[current_drop].package_type, drops[current_drop].weight, drops[current_drop].amplitude, drops[current_drop].package_number
+                // );
                 current_drop++;
             }
         }
@@ -52,7 +55,7 @@ int main(int argc, char* argv[]) {
                 else
                     drops[i].amplitude -= 100;
 
-                printf("Amplitude (%d): %d\n", drops[i].package_number, drops[i].amplitude);
+                // printf("Amplitude (%d): %d\n", drops[i].package_number, drops[i].amplitude);
                 
             } else {
                 AidPackage package;
@@ -87,7 +90,7 @@ void missile_attack(int sig) {
         
     int random_drop = select_from_range(0, current_drop-1);
 
-    if (drops[random_drop].amplitude > 700) {
+    if (drops[random_drop].amplitude > threshold) {
         drops[random_drop].weight = 0;
 
         // swap drops[i] with current_drop (last drop) (soft delete).
@@ -98,7 +101,7 @@ void missile_attack(int sig) {
         current_drop--;
         printf("Destroyed package (%d) has now weight: %d\n", drops[random_drop].package_number, drops[random_drop].weight);
 
-    } else if (drops[random_drop].amplitude > 300 && drops[random_drop].amplitude < 700) {
+    } else if (drops[random_drop].amplitude > 300 && drops[random_drop].amplitude < threshold) {
         drops[random_drop].weight /= 3;
         drops[random_drop].amplitude = 0;
         printf("Destroyed package (%d) has now weight: %d\n", drops[random_drop].package_number, drops[random_drop].weight);
