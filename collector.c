@@ -52,10 +52,7 @@ int main(int argc, char *argv[]) {
     while (1) {
     
         // Receive a message from the queue
-        while (msgrcv(sky_id, &received_containers_from_sky, sizeof(AidPackage), CONTAINER, 0) == -1) {
-            printf("(Collector) with pid (%d) is waiting to receive more containers,(ENERGY)=%d\n", getpid(),energy);
-            fflush(stdout);
-        }
+        while (msgrcv(sky_id, &received_containers_from_sky, sizeof(AidPackage), CONTAINER, 0) == -1);
 
         // Print the received message
         printf(

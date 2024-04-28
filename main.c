@@ -4,14 +4,20 @@
 
 static int NUM_PLANES;
 static int NUM_COLLECTORS;
+static int NUM_FAMILIES;
 static int NUM_SPLITTERS;
 static int NUM_DISTRIBUTORS;
 static int NUM_FAMILIES;
+static int FAMILIES_STARVATION_RATE_INCREASE;
+static int FAMILIES_STARVATION_RATE_DECREASE;
+static int FAMILIES_DECREASE_ALARM;
+static int FAMILIES__STARVATION_SURVIVAL_THRESHOLD;
 static char CARGO_SIZE_RANGE[10];
 static char REFILL_RANGE[10];
 static char AMPLITUDE_RANGE[10];
 static char WORKERS_ENERGY_DECAY[10];
 static char WEIGHT_PER_CONTAINER[10];
+static char FAMILIES_STARVATION_RATE_RANGE[10];
 static char WORKERS_START_ENERGY[10];
 static int DROP_PERIOD;
 static int DISTRIBUTOR_BAGS_TRIP;
@@ -21,7 +27,7 @@ static int OCCUPATION_BRUTALITY;
 void readFile(char* filename);
 void program_exit(int sig);
 
-int sky_id, safe_id;
+int sky_id, safe_id, families_id;
 
 int main(int argc, char* argv[]) {
 
@@ -40,6 +46,8 @@ int main(int argc, char* argv[]) {
 
     key_t sky_queue_key = ftok(".", 'Q');
     key_t safe_area_key = ftok(".", 'S');
+    key_t families_key = ftok(".", 'F');
+    
 
     if ( (sky_id = msgget(sky_queue_key, IPC_CREAT | 0770)) == -1 ) {
         perror("Queue create");
@@ -47,6 +55,11 @@ int main(int argc, char* argv[]) {
     }
 
     if ( (safe_id = msgget(safe_area_key, IPC_CREAT | 0770)) == -1 ) {
+        perror("Queue create");
+        exit(1);
+    }
+
+    if ( (families_id = msgget(families_key, IPC_CREAT | 0770)) == -1 ) {
         perror("Queue create");
         exit(1);
     }
@@ -78,7 +91,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Fork child processes
+    // Fork collectors
     for (int i = 0; i < NUM_COLLECTORS; i++) {
         // Fork a child process
         collectors[i] = fork();
@@ -121,6 +134,24 @@ int main(int argc, char* argv[]) {
             );
             perror("execlp");
             exit(EXIT_FAILURE);
+        }
+    }
+
+    // fork families
+    for (int i = 0; i < NUM_FAMILIES; i++) {
+        families[i] = fork();
+
+        if (families[i] == 0) {
+            char f_id[20];
+            sprintf(f_id, "%d", families_id);
+            
+            execlp(
+                "./families", "families", f_id, FAMILIES_STARVATION_RATE_RANGE, 
+                FAMILIES_STARVATION_RATE_INCREASE, FAMILIES_STARVATION_RATE_DECREASE, 
+                FAMILIES_DECREASE_ALARM, FAMILIES__STARVATION_SURVIVAL_THRESHOLD, i, NULL
+            );
+            perror("Exec families Error");
+            exit(SIGQUIT);
         }
     }
 
@@ -179,14 +210,14 @@ int main(int argc, char* argv[]) {
         int status;
         pid_t killed_worker = wait(&status);
 
-        printf("Worker %d is Killed (main) status %d\n", killed_worker, WEXITSTATUS(status));
-
         // killed by occupation
         if ( WEXITSTATUS(status) ) {
             printf("Worker %d shot by occupation\n", i);
+            printf("-----------------------------------Worker %d is Killed (main) status %d\n", killed_worker, WEXITSTATUS(status));
             kill(occupation, SIGUSR1);
         }
     }
+    printf("Done from worker=============================================================================================\n");
 
 #ifdef SLEEP
     sleep(SLEEP);
@@ -202,6 +233,10 @@ int main(int argc, char* argv[]) {
     }
     for (int i = 0; i < NUM_SPLITTERS; i++) {
         kill(splitters[i], SIGINT);
+        wait(NULL);
+    }
+    for (int i = 0; i < NUM_FAMILIES; i++) {
+        kill(families[i], SIGINT);
         wait(NULL);
     }
 
@@ -246,6 +281,8 @@ void readFile(char* filename) {
 
         if (strcmp(label, "CARGO_PLANES") == 0){
             NUM_PLANES = atoi(str);
+        } else if (strcmp(label, "NUM_FAMILIES") == 0){
+            NUM_FAMILIES = atoi(str);
         } else if (strcmp(label, "NUM_COLLECTORS") == 0){
             NUM_COLLECTORS = atoi(str);
         } else if (strcmp(label, "NUM_SPLITTERS") == 0){
@@ -264,6 +301,16 @@ void readFile(char* filename) {
             OCCUPATION_BRUTALITY = atoi(str);
         } else if (strcmp(label, "WORKERS_START_ENERGY") == 0){
             strcpy(WORKERS_START_ENERGY, str);
+        } else if (strcmp(label, "FAMILIES_STARVATION_RATE_RANGE") == 0){
+            strcpy(FAMILIES_STARVATION_RATE_RANGE, str);
+        } else if (strcmp(label, "FAMILIES_STARVATION_RATE_INCREASE") == 0){
+            FAMILIES_STARVATION_RATE_INCREASE = atoi(str);
+        } else if (strcmp(label, "FAMILIES_STARVATION_RATE_DECREASE") == 0){
+            FAMILIES_STARVATION_RATE_DECREASE = atoi(str);
+        } else if (strcmp(label, "FAMILIES_DECREASE_ALARM") == 0){
+            FAMILIES_DECREASE_ALARM = atoi(str);
+        } else if (strcmp(label, "FAMILIES__STARVATION_SURVIVAL_THRESHOLD") == 0){
+            FAMILIES__STARVATION_SURVIVAL_THRESHOLD = atoi(str);
         }
     }
 
@@ -278,6 +325,10 @@ void program_exit(int sig) {
     }
 
     if (msgctl(safe_id, IPC_RMID, (struct msqid_ds *) 0) == -1) {
+        perror("msgctl");
+        exit(EXIT_FAILURE);
+    }
+    if (msgctl(families_id, IPC_RMID, (struct msqid_ds *) 0) == -1) {
         perror("msgctl");
         exit(EXIT_FAILURE);
     }

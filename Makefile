@@ -1,6 +1,6 @@
 G = gcc -g
 O = -o
-names = main plane sky collector splitter occupation functions.o
+names = main plane sky collector splitter occupation functions.o drawer
 
 files:
 	gcc -c functions.c -o functions.o
@@ -10,6 +10,8 @@ files:
 	$(G) occupation.c functions.o $(O) occupation
 	$(G) sky.c functions.o $(O) sky
 	$(G) main.c -D SLEEP=70 -D DELETE $(O) main
+	gcc drawer.c $(O) drawer -lglut -lGLU -lGL -lm
 
 clean:
 	rm -f $(names)
+	

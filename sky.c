@@ -27,7 +27,8 @@ int main(int argc, char* argv[]) {
 
     while (1) {
 
-        msgctl(mid, IPC_STAT, &buf);
+        if (msgctl(mid, IPC_STAT, &buf) == -1)
+            perror("COC DETECTED--------------------------------------->");
  
         for (int i = 0; i < buf.msg_qnum; i++)
         {
@@ -80,6 +81,10 @@ int main(int argc, char* argv[]) {
 
 
 void missile_attack(int sig) {
+
+    if (current_drop <= 0)
+        return;
+        
     int random_drop = select_from_range(0, current_drop-1);
 
     if (drops[random_drop].amplitude > 700) {

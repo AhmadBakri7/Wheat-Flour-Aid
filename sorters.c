@@ -1,11 +1,10 @@
 #include "headers.h"
-#include "functions.h"
 
 
 int main(int argc, char* argv[]) {
 
     if (argc < 6) {
-        perror("Not Enough Args, plane.c");
+        perror("Not Enough Args, sorters.c");
         exit(-1);
     }
 
@@ -24,13 +23,12 @@ int main(int argc, char* argv[]) {
     int min_refill = atoi(strtok(argv[5], "-"));
     int max_refill = atoi(strtok('\0', "-"));
 
+
     printf("Hello from Child %d, mid: %d, max: %d, min: %d\n", getpid(), mid, max_amplitude, min_amplitude);
 
     AidDrop drops[max_containers];
-    int id = 0;
 
     for (int i = 0; i < containers; i++) {
-        drops[i].package_number = id++;
         drops[i].package_type = DROP;
         drops[i].weight = select_from_range(10, 20);
         drops[i].amplitude = plane_amplitude;
@@ -55,13 +53,11 @@ int main(int argc, char* argv[]) {
 
         // refill
         if (current_drop == containers) {
-            printf("Plane %d is refilling\n", getpid());
 
             int new_containers = select_from_range(min_containers, max_containers);
-            plane_amplitude = select_from_range(min_amplitude, max_amplitude);
+            int new_amplitude = select_from_range(min_amplitude, max_amplitude);
 
             for (int i = 0; i < new_containers; i++) {
-                drops[i].package_number = id++;
                 drops[i].package_type = DROP;
                 drops[i].weight = select_from_range(10, 20);
                 drops[i].amplitude = plane_amplitude;
