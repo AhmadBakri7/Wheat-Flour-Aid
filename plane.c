@@ -1,4 +1,5 @@
 #include "headers.h"
+#include "functions.h"
 
 
 int main(int argc, char* argv[]) {
@@ -29,6 +30,7 @@ int main(int argc, char* argv[]) {
     AidDrop drops[max_containers];
 
     for (int i = 0; i < containers; i++) {
+        drops[i].package_number = i;
         drops[i].package_type = DROP;
         drops[i].weight = select_from_range(10, 20);
         drops[i].amplitude = plane_amplitude;
@@ -53,11 +55,13 @@ int main(int argc, char* argv[]) {
 
         // refill
         if (current_drop == containers) {
+            printf("Plane %d is refilling\n", getpid());
 
             int new_containers = select_from_range(min_containers, max_containers);
-            int new_amplitude = select_from_range(min_amplitude, max_amplitude);
+            plane_amplitude = select_from_range(min_amplitude, max_amplitude);
 
             for (int i = 0; i < new_containers; i++) {
+                drops[i].package_number = i;
                 drops[i].package_type = DROP;
                 drops[i].weight = select_from_range(10, 20);
                 drops[i].amplitude = plane_amplitude;

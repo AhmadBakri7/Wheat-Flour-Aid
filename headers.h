@@ -26,8 +26,4 @@
 #include "constants.h"
 
 
-int select_from_range(int min, int max);
-unsigned int get_sleep_duration(int energy);
-
-
 #endif

@@ -12,12 +12,16 @@ static char REFILL_RANGE[10];
 static char AMPLITUDE_RANGE[10];
 static char WORKERS_ENERGY_DECAY[10];
 static char WEIGHT_PER_CONTAINER[10];
+static char WORKERS_START_ENERGY[10];
 static int DROP_PERIOD;
 static int DISTRIBUTOR_BAGS_TRIP;
+static int OCCUPATION_BRUTALITY;
 
 
 void readFile(char* filename);
+void program_exit(int sig);
 
+int sky_id, safe_id;
 
 int main(int argc, char* argv[]) {
 
@@ -27,11 +31,15 @@ int main(int argc, char* argv[]) {
         readFile(argv[1]);
     }
 
+    if ( signal(SIGINT, program_exit) == SIG_ERR ) {
+        perror("SIGINT Error in main");
+        exit(SIGQUIT);
+    }
+
     printf("Args :%d, %s\n", NUM_PLANES, CARGO_SIZE_RANGE);
 
     key_t sky_queue_key = ftok(".", 'Q');
     key_t safe_area_key = ftok(".", 'S');
-    int sky_id, safe_id;
 
     if ( (sky_id = msgget(sky_queue_key, IPC_CREAT | 0770)) == -1 ) {
         perror("Queue create");
@@ -88,7 +96,11 @@ int main(int argc, char* argv[]) {
             sprintf(sky_key, "%d", (int)sky_queue_key);
             sprintf(safe_key, "%d", safe_area_key);
 
-            execlp("./collector", "collector", sky_key, safe_key, WORKERS_ENERGY_DECAY, NULL);
+            execlp(
+                "./collector", "collector",
+                sky_key, safe_key,
+                WORKERS_ENERGY_DECAY, WORKERS_START_ENERGY, NULL
+            );
             perror("execlp");
             exit(EXIT_FAILURE);
         }
@@ -102,7 +114,11 @@ int main(int argc, char* argv[]) {
             char msgqueue_id[20];
 
             sprintf(msgqueue_id, "%d", safe_id);
-            execlp("./splitter", "splitter", msgqueue_id, WORKERS_ENERGY_DECAY, NULL);
+            execlp(
+                "./splitter", "splitter",
+                msgqueue_id,
+                WORKERS_ENERGY_DECAY, WORKERS_START_ENERGY, NULL
+            );
             perror("execlp");
             exit(EXIT_FAILURE);
         }
@@ -118,6 +134,58 @@ int main(int argc, char* argv[]) {
         execlp("./sky", "sky", m_id, NULL);
         perror("Exec Sky Error");
         exit(SIGQUIT);
+    }
+
+    // fork occupation
+    pid_t occupation = fork();
+
+    if (occupation == 0) {
+        char sky_pid[20];
+        char workers[1000];
+        char num_workers[20];
+        char sky_parachutes_id[20];
+        char brutality[20];
+
+        strcpy(workers, "");
+
+        for (int i = 0; i < NUM_COLLECTORS; i++) {
+            char worker_pid[20];
+            sprintf(worker_pid, "%d", collectors[i]);
+
+            strcat(workers, worker_pid);
+            strcat(workers, ",");
+        }
+        for (int i = 0; i < NUM_DISTRIBUTORS; i++) {
+            char worker_pid[20];
+            sprintf(worker_pid, "%d", distributors[i]);
+
+            strcat(workers, worker_pid);
+            strcat(workers, ",");
+        }
+
+        sprintf(sky_pid, "%d", sky_process);
+        sprintf(num_workers, "%d", NUM_COLLECTORS + NUM_DISTRIBUTORS);
+        sprintf(sky_parachutes_id, "%d", sky_queue_key);
+        sprintf(brutality, "%d", OCCUPATION_BRUTALITY);
+
+
+        execlp("./occupation", "occupation", sky_pid, workers, num_workers, sky_parachutes_id, brutality, NULL);
+
+        perror("Occupation Exec Error");
+        exit(SIGQUIT);
+    }
+
+    for (int i = 0; i < NUM_COLLECTORS; i++) {
+        int status;
+        pid_t killed_worker = wait(&status);
+
+        printf("Worker %d is Killed (main) status %d\n", killed_worker, WEXITSTATUS(status));
+
+        // killed by occupation
+        if ( WEXITSTATUS(status) ) {
+            printf("Worker %d shot by occupation\n", i);
+            kill(occupation, SIGUSR1);
+        }
     }
 
 #ifdef SLEEP
@@ -192,8 +260,26 @@ void readFile(char* filename) {
             strcpy(AMPLITUDE_RANGE, str);
         } else if (strcmp(label, "WORKERS_ENERGY_DECAY") == 0){
             strcpy(WORKERS_ENERGY_DECAY, str);
+        } else if (strcmp(label, "OCCUPATION_BRUTALITY") == 0){
+            OCCUPATION_BRUTALITY = atoi(str);
+        } else if (strcmp(label, "WORKERS_START_ENERGY") == 0){
+            strcpy(WORKERS_START_ENERGY, str);
         }
     }
 
     fclose(file);
+}
+
+void program_exit(int sig) {
+
+    if ( msgctl(sky_id, IPC_RMID, (struct msqid_ds *) 0)) {
+        perror("msgctl");
+        exit(EXIT_FAILURE); 
+    }
+
+    if (msgctl(safe_id, IPC_RMID, (struct msqid_ds *) 0) == -1) {
+        perror("msgctl");
+        exit(EXIT_FAILURE);
+    }
+    exit(0);
 }

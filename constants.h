@@ -8,9 +8,10 @@ typedef struct {
 
 
 typedef struct {
-    long package_type; /* to whom this package is being sent (type) */
-    int weight;        /* in KG */
-    int amplitude;     /* height from surface */
+    long package_type;  /* to whom this package is being sent (type) */
+    int package_number; /**/
+    int weight;         /* in KG */
+    int amplitude;      /* height from surface */
 } AidDrop;
 
 
