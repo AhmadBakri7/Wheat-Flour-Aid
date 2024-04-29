@@ -26,7 +26,7 @@ static int OCCUPATION_BRUTALITY;
 
 
 void readFile(char* filename);
-void create_message_queues(key_t, key_t, key_t);
+void create_message_queues(key_t, key_t, key_t, key_t);
 void program_exit(int sig);
 
 int sky_id, safe_id, family_id, sorter_id, plane_sem, plane_shmem;
@@ -44,6 +44,11 @@ int main(int argc, char* argv[]) {
         exit(SIGQUIT);
     }
 
+    if ( signal(SIGTSTP, program_exit) == SIG_ERR ) {
+        perror("SIGINT Error in main");
+        exit(SIGQUIT);
+    }
+
     printf("Args :%d, %s\n", NUM_PLANES, CARGO_SIZE_RANGE);
 
     key_t sky_queue_key = ftok(".", 'Q');
@@ -54,14 +59,9 @@ int main(int argc, char* argv[]) {
     key_t pshmem_key = ftok(".", ('P' + 'M'));
 
 
-    create_message_queues(sky_queue_key, safe_area_key, families_key);
+    create_message_queues(sky_queue_key, safe_area_key, families_key, sorter_key);
 
     printf("Fam_Key: %d, Safe_area_key: %d\n", family_id, safe_id);
-    
-    if ( (sorter_id = msgget(sorter_key, IPC_CREAT | 0770)) == -1 ) {
-        perror("Queue create");
-        exit(1);
-    }
 
     // create or retrieve the semaphore
     if ( (plane_sem = semget(pshmem_key, 1, IPC_CREAT | 0660)) == -1 ) {
@@ -183,7 +183,7 @@ int main(int argc, char* argv[]) {
     }
 
     // fork families
-    for (int i = 0; i < NUM_FAMILIES; i++) {
+    for (int i = 1; i < (NUM_FAMILIES+1); i++) {
         families[i] = fork();
 
         if (families[i] == 0) {
@@ -444,7 +444,7 @@ void readFile(char* filename) {
 }
 
 
-void create_message_queues(key_t sky_queue_key, key_t safe_area_key, key_t families_key) {
+void create_message_queues(key_t sky_queue_key, key_t safe_area_key, key_t families_key, key_t sorter_key) {
     
     if ( (sky_id = msgget(sky_queue_key, IPC_CREAT | 0770)) == -1 ) {
         perror("Queue create");
@@ -457,6 +457,11 @@ void create_message_queues(key_t sky_queue_key, key_t safe_area_key, key_t famil
     }
 
     if ( (family_id = msgget(families_key, IPC_CREAT | 0770)) == -1 ) {
+        perror("Queue create");
+        exit(1);
+    }
+
+    if ( (sorter_id = msgget(sorter_key, IPC_CREAT | 0770)) == -1 ) {
         perror("Queue create");
         exit(1);
     }

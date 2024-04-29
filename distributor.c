@@ -48,9 +48,11 @@ int main(int argc, char *argv[]) {
 
         sleep( get_sleep_duration(energy) );
         printf("*****************************(Distributor) %d has reached family neighborhood*****************************\n", getpid());
+        fflush(NULL);
 
         for (int i = 0; i < DISTRIBUTOR_BAGS_TRIP_hold; i++) {
             printf("-----(Distributor) Going to families-------\n");
+            fflush(NULL);
 
             familyCritical fam;
 
@@ -58,7 +60,9 @@ int main(int argc, char *argv[]) {
                 perror("msgrcv");
                 exit(EXIT_FAILURE);
             }
-            printf("-----(Distributor) Has Received the most f*** family from (sorter)-------\n");
+            printf("-----(Distributor) Has Received the most f*** family from (sorter)-------, index %d\n", 
+                    fam.familyIndex);
+            fflush(NULL);
 
             bags[count-1].package_type = fam.familyIndex;
 
