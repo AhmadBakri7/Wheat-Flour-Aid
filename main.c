@@ -19,6 +19,7 @@ static char WORKERS_ENERGY_DECAY[10];
 static char WEIGHT_PER_CONTAINER[10];
 static char FAMILIES_STARVATION_RATE_RANGE[10];
 static char WORKERS_START_ENERGY[10];
+static int SORTER_REQUIRED_STARVE_RATE_DECREASE_PERCENTAGE;
 static int DROP_PERIOD;
 static int PLANE_SAFE_DISTANCE;
 static int DISTRIBUTOR_BAGS_TRIP;
@@ -29,7 +30,8 @@ void readFile(char* filename);
 void create_message_queues(key_t, key_t, key_t, key_t);
 void program_exit(int sig);
 
-int sky_id, safe_id, family_id, sorter_id, plane_sem, plane_shmem;
+int sky_id, safe_id, family_id, sorter_id;
+int plane_sem, plane_shmem, sorter_sem, sorter_shmem;
 
 int main(int argc, char* argv[]) {
 
@@ -55,29 +57,55 @@ int main(int argc, char* argv[]) {
     key_t safe_area_key = ftok(".", 'S');
     key_t families_key = ftok(".", 'F');
     key_t sorter_key = ftok(".", 'R');
+
     key_t psem_key = ftok(".", ('P' + 'S'));
     key_t pshmem_key = ftok(".", ('P' + 'M'));
 
+    key_t sorter_sem_key = ftok(".", ('S' + 'S'));
+    key_t sorter_shmem_key = ftok(".", ('S' + 'M'));
 
     create_message_queues(sky_queue_key, safe_area_key, families_key, sorter_key);
 
     printf("Fam_Key: %d, Safe_area_key: %d\n", family_id, safe_id);
 
     // create or retrieve the semaphore
-    if ( (plane_sem = semget(pshmem_key, 1, IPC_CREAT | 0660)) == -1 ) {
+    if ( (plane_sem = semget(psem_key, 1, IPC_CREAT | 0660)) == -1 ) {
         perror("semget: IPC_CREAT | 0660");
+        program_exit(SIGINT);
     }
 
     // initialize semaphore
-    union semun su;
-    su.val = 1;
-    if (semctl(plane_sem, 0, SETVAL, su) < 0) {
+    union semun plane_su;
+    plane_su.val = 1;
+    if (semctl(plane_sem, 0, SETVAL, plane_su) < 0) {
         perror("semctl");
         exit(1);
     }
 
+    // create or retrieve the semaphore
+    if ( (sorter_sem = semget(sorter_sem_key, 2, IPC_CREAT | 0660)) == -1 ) {
+        perror("semget: IPC_CREAT | 0660");
+        program_exit(SIGINT);
+    }
+
+    // initialize semaphore
+    union semun sorter_su;
+    static ushort start_val[2] = {1, 0};
+    sorter_su.array = start_val;
+
+    if (semctl(sorter_sem, 0, SETALL, sorter_su) < 0) {
+        perror("semctl");
+        program_exit(SIGINT);
+    }
+
     // Create or retrieve the shared memory segment
-    if ((plane_shmem = shmget(psem_key, sizeof(AirSpace) * NUM_PLANES, IPC_CREAT | 0666)) < 0) {
+    if ((plane_shmem = shmget(pshmem_key, sizeof(AirSpace) * NUM_PLANES, IPC_CREAT | 0666)) < 0) {
+        perror("shmget");
+        exit(1);
+    }
+
+    // Create or retrieve the shared memory segment
+    if ((sorter_shmem = shmget(sorter_shmem_key, sizeof(familyCritical), IPC_CREAT | 0666)) < 0) {
         perror("shmget");
         exit(1);
     }
@@ -171,12 +199,18 @@ int main(int argc, char* argv[]) {
             char msgqueue_id_safe[20];
             char num_of_can_hold[20];
             char msgqueue_family[20];
+            char sem[20], shmem[20];
 
             sprintf(msgqueue_id_safe, "%d", safe_id);
             sprintf(num_of_can_hold, "%d", DISTRIBUTOR_BAGS_TRIP);
             sprintf(msgqueue_family, "%d", family_id);
+            sprintf(sem, "%d", sorter_sem);
+            sprintf(shmem, "%d", sorter_shmem);
 
-            execlp("./distributor", "distributor", msgqueue_id_safe, WORKERS_ENERGY_DECAY, num_of_can_hold, msgqueue_family, WORKERS_START_ENERGY, NULL);
+            execlp(
+                "./distributor", "distributor",
+                msgqueue_id_safe, WORKERS_ENERGY_DECAY, num_of_can_hold, msgqueue_family, WORKERS_START_ENERGY, sem, shmem, NULL
+            );
             perror("execlp");
             exit(EXIT_FAILURE);
         }
@@ -231,11 +265,19 @@ int main(int argc, char* argv[]) {
         char f_id[20];
         char s_id[20];
         char number[20];
+        char sem[20], shmem[20];
+        char required_decrease[20];
+        char family_decrease[20];
+
         sprintf(f_id, "%d", family_id);
         sprintf(s_id, "%d", sorter_id);
         sprintf(number, "%d", NUM_FAMILIES);
+        sprintf(sem, "%d", sorter_sem);
+        sprintf(shmem, "%d", sorter_shmem);
+        sprintf(required_decrease, "%d", SORTER_REQUIRED_STARVE_RATE_DECREASE_PERCENTAGE);
+        sprintf(family_decrease, "%d", FAMILIES_STARVATION_RATE_DECREASE);
 
-        execlp("./sorter", "sorter", f_id, s_id, number, NULL);
+        execlp("./sorter", "sorter", f_id, s_id, number, sem, shmem, required_decrease, family_decrease, NULL);
         perror("Exec Sorter Error");
         exit(SIGQUIT);
     }
@@ -350,6 +392,16 @@ int main(int argc, char* argv[]) {
         perror("shmid: IPC_RMID");	/* remove semaphore */
         exit(5);
     }
+
+    if ( semctl(sorter_sem, IPC_RMID, 0) == -1 ) {
+        perror("semctl: IPC_RMID");	/* remove semaphore */
+        exit(5);
+    }
+
+    if ( shmctl(sorter_shmem, IPC_RMID, (struct shmid_ds *) 0) == -1 ) {
+        perror("shmid: IPC_RMID");	/* remove shred memory */
+        exit(5);
+    }
 #endif
 
     return 0;
@@ -437,6 +489,8 @@ void readFile(char* filename) {
 
         } else if (strcmp(label, "FAMILIES__STARVATION_SURVIVAL_THRESHOLD") == 0){
             FAMILIES__STARVATION_SURVIVAL_THRESHOLD = atoi(str);
+        } else if (strcmp(label, "SORTER_REQUIRED_STARVE_RATE_DECREASE_PERCENTAGE") == 0){
+            SORTER_REQUIRED_STARVE_RATE_DECREASE_PERCENTAGE = atoi(str);
         }
     }
 
@@ -495,7 +549,17 @@ void program_exit(int sig) {
     }
 
     if ( shmctl(plane_shmem, IPC_RMID, (struct shmid_ds *) 0) == -1 ) {
-        perror("shmid: IPC_RMID");	/* remove semaphore */
+        perror("shmid: IPC_RMID");	/* remove shred memory */
+        exit(5);
+    }
+
+    if ( semctl(sorter_sem, IPC_RMID, 0) == -1 ) {
+        perror("semctl: IPC_RMID");	/* remove semaphore */
+        exit(5);
+    }
+
+    if ( shmctl(sorter_shmem, IPC_RMID, (struct shmid_ds *) 0) == -1 ) {
+        perror("shmid: IPC_RMID");	/* remove shred memory */
         exit(5);
     }
     exit(0);

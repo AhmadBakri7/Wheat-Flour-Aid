@@ -1,6 +1,8 @@
 
 enum PACKAGE_TYPE {DROP = 1, CONTAINER = 2, KG_BAG = 3, SORTER_VALUE = 100};
 
+enum {SORTER, DISTRIBUTOR};
+
 typedef struct {
     long package_type; /* to whom this package is being sent (type) */
     int weight;        /* in KG */
@@ -15,8 +17,8 @@ typedef struct {
 } AidDrop;
 
 typedef struct{
-    long type;
-    int familyIndex;
+    int family_index;
+    int num_bags_required;
 } familyCritical;
 
 

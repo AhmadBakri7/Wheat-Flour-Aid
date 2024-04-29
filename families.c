@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
 
         while ( msgrcv(fid, &bag, sizeof(AidPackage), family_index, 0) == -1 );
 
-        starvation_rate -= starvation_rate_decrease_constant;
+        starvation_rate -= (starvation_rate_decrease_constant * bag.weight);
 
         printf("(family) index %d Ate, strv %d\n", family_index, starvation_rate);
         fflush(NULL);
