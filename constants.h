@@ -1,4 +1,4 @@
-
+// Hanna Bullata
 enum PACKAGE_TYPE {DROP = 1, CONTAINER = 2, KG_BAG = 3, SORTER_VALUE = 100};
 
 typedef struct {

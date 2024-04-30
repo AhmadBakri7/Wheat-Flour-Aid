@@ -1,3 +1,5 @@
+// Ahmad Ghazawneh
+
 #include "headers.h"
 
 #define DEFAULT_SETTINGS "settings.txt"
