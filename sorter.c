@@ -6,12 +6,8 @@ int number_of_families;
 int starvation_rate_for_families[50];
 int family_max_starvation_rate_index;
 
-familyStruct familia;
-
-struct sembuf acquire = {0, -1, IPC_NOWAIT};
-struct sembuf release = {0, 1, SEM_UNDO};
-
 int get_num_of_bags(int starve_rate, float required_decrease, int starve_rate_decrease);
+
 
 int main(int argc, char* argv[]) {
 
@@ -36,6 +32,7 @@ int main(int argc, char* argv[]) {
     }
 
     struct msqid_ds buf;
+    familyStruct familia;
 
     while (1) {
 
@@ -77,6 +74,7 @@ int main(int argc, char* argv[]) {
             );
             
             familyCritical worst_family;
+            worst_family.type = SORTER_VALUE;
             worst_family.family_index = family_max_starvation_rate_index;
             worst_family.num_bags_required = bags_required;
 
