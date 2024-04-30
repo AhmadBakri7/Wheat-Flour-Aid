@@ -60,7 +60,9 @@ int main(int argc, char* argv[]) {
             printf("sorter calculated that max is family index %d strv %d\n", 
                     family_max_starvation_rate_index, starvation_rate_for_families[family_max_starvation_rate_index]);
             fflush(NULL);
-
+ 
+            familyCritical emptyQueue;
+            msgrcv(fid, &emptyQueue, sizeof(familyCritical), SORTER_VALUE, IPC_NOWAIT);
             msgsnd(fid, &criticalFamily, sizeof(familyCritical), 0);
         }
     }
