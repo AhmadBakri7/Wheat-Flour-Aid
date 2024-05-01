@@ -6,7 +6,6 @@ LDFLAGS_DRAWER = -lm -lglut -lGLU -lGL
 
 # Object file directory
 OBJ_DIR = obj
-EXE_DIR = exe
 
 # Source files for each process
 PROCESS_SOURCES = plane.c collector.c splitter.c occupation.c \
@@ -16,7 +15,7 @@ PROCESS_SOURCES = plane.c collector.c splitter.c occupation.c \
 FUNCTIONS_OBJECT = $(OBJ_DIR)/functions.o
 
 # Executables (excluding drawer)
-EXECUTABLES = $(addprefix $(EXE_DIR)/,$(basename $(PROCESS_SOURCES)))
+EXECUTABLES = $(basename $(PROCESS_SOURCES))
 
 MATH_USERS = sorter plane
 
@@ -38,26 +37,22 @@ $(MATH_USERS): %: $(OBJ_DIR)/%.o $(FUNCTIONS_OBJECT)
 
 
 # Rule to link each executable (except drawer) with common LDFLAGS
-$(filter-out $(MATH_USERS) drawer main,$(EXECUTABLES)): %: $(OBJ_DIR)/%.o $(FUNCTIONS_OBJECT) | $(EXE_DIR)
-	$(CC) $^ -o $(EXE_DIR)/$@
+$(filter-out $(MATH_USERS) drawer main,$(EXECUTABLES)): %: $(OBJ_DIR)/%.o $(FUNCTIONS_OBJECT)
+	$(CC) $^ -o $@
 
 
 # Rule to link drawer executable with specific LDFLAGS
-drawer: $(OBJ_DIR)/drawer.o $(FUNCTIONS_OBJECT) | $(EXE_DIR)
-	$(CC) $^ -o $(EXE_DIR)/$@ $(LDFLAGS_DRAWER)
+drawer: $(OBJ_DIR)/drawer.o $(FUNCTIONS_OBJECT)
+	$(CC) $^ -o $@ $(LDFLAGS_DRAWER)
 
 # Rule to link drawer executable with specific LDFLAGS
-main: $(OBJ_DIR)/main.o $(FUNCTIONS_OBJECT) | $(EXE_DIR)
-	$(CC) $^ -D SLEEP=20 -D DELETE -o $(EXE_DIR)/$@ $(LDFLAGS_DRAWER)
+main: $(OBJ_DIR)/main.o $(FUNCTIONS_OBJECT)
+	$(CC) $^ -D SLEEP=20 -D DELETE -o $@ $(LDFLAGS_DRAWER)
 
 
 # Create object file directory if it doesn't exist
 $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
-
-# Create executable file directory if it doesn't exist
-$(EXE_DIR):
-	mkdir -p $(EXE_DIR)
 
 # Clean target (remove object files and executables)
 clean:
