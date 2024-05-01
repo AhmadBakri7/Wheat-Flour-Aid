@@ -4,6 +4,7 @@
 
 void missile_attack(int sig);
 
+int news_queue;
 int current_drop;
 int threshold;
 AidDrop drops[100];
@@ -11,7 +12,7 @@ AidDrop drops[100];
 
 int main(int argc, char* argv[]) {
 
-    if (argc < 3) {
+    if (argc < 4) {
         perror("Not Enough Args, plane.c");
         exit(-1);
     }
@@ -22,7 +23,8 @@ int main(int argc, char* argv[]) {
         exit(SIGQUIT);
     }
 
-    int mid = atoi(argv[1]);    /* the id for the message queue */
+    int sky_queue = atoi(argv[1]);    /* message queue ID for the sky queue */
+    news_queue = atoi(argv[3]); /* message queue ID for the news queue */
     threshold = atoi(argv[2]);  /* exploded drops above threshold gets totally lost */
 
     struct msqid_ds buf;
@@ -31,14 +33,14 @@ int main(int argc, char* argv[]) {
 
     while (1) {
 
-        msgctl(mid, IPC_STAT, &buf);
+        msgctl(sky_queue, IPC_STAT, &buf);
         
         for (int i = 0; i < buf.msg_qnum; i++)
         {
-            if ( msgrcv(mid, &drops[current_drop], BUFSIZ, DROP, 0) != -1 ) {
+            if ( msgrcv(sky_queue, &drops[current_drop], BUFSIZ, DROP, 0) != -1 ) {
                 // printf(
-                //     "current_drop: %d, Message-type: %ld, Weight: %d, amplitude: %d, drop_number: %d\n",
-                //     current_drop, drops[current_drop].package_type, drops[current_drop].weight, drops[current_drop].amplitude, drops[current_drop].package_number
+                //     "current_drop: %d, Message-type: %ld, Weight: %d, amplitude: %d\n",
+                //     current_drop, drops[current_drop].package_type, drops[current_drop].weight, drops[current_drop].amplitude
                 // );
                 current_drop++;
             }
@@ -55,7 +57,7 @@ int main(int argc, char* argv[]) {
                 else
                     drops[i].amplitude -= 100;
 
-                // printf("Amplitude (%d): %d\n", drops[i].package_number, drops[i].amplitude);
+                // printf("Amplitude (%d): %d\n", drops[i].amplitude);
                 
             } else {
                 AidPackage package;
@@ -70,11 +72,11 @@ int main(int argc, char* argv[]) {
 
                 current_drop--;
 
-                if (msgsnd(mid, &package, sizeof(package), 0) == -1 ) {
+                if (msgsnd(sky_queue, &package, sizeof(package), 0) == -1 ) {
                     perror("Child: msgsend");
                     return 4;
                 }
-                printf("Package (%d) sent to collector from sky\n", drops[i].package_number);
+                printf("Package (Amp: %d) sent to collector from sky\n", drops[i].amplitude);
             }
         }
     }
@@ -87,7 +89,7 @@ void missile_attack(int sig) {
 
     if (current_drop <= 0)
         return;
-        
+
     int random_drop = select_from_range(0, current_drop-1);
 
     if (drops[random_drop].amplitude > threshold) {
@@ -99,16 +101,23 @@ void missile_attack(int sig) {
         drops[random_drop].amplitude = drops[current_drop-1].amplitude;
 
         current_drop--;
-        printf("Destroyed package (%d) has now weight: %d\n", drops[random_drop].package_number, drops[random_drop].weight);
+        printf("(SKY) Destroyed package (%d) has now weight: %d\n", random_drop, drops[random_drop].weight);
+
+        alert_news(news_queue, SKY);
 
     } else if (drops[random_drop].amplitude > 300 && drops[random_drop].amplitude < threshold) {
         drops[random_drop].weight /= 3;
         drops[random_drop].amplitude = 0;
-        printf("Destroyed package (%d) has now weight: %d\n", drops[random_drop].package_number, drops[random_drop].weight);
+        printf("Destroyed package (%d) has now weight: %d\n", random_drop, drops[random_drop].weight);
+
+        alert_news(news_queue, SKY);
+
     } else if (drops[random_drop].amplitude > 100 && drops[random_drop].amplitude < 300) {
         drops[random_drop].weight /= 2;
         drops[random_drop].amplitude = 0;
-        printf("Destroyed package (%d) has now weight: %d\n", drops[random_drop].package_number, drops[random_drop].weight);
+        printf("Destroyed package (%d) has now weight: %d\n", random_drop, drops[random_drop].weight);
+
+        alert_news(news_queue, SKY);
     }
 }
 

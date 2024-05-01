@@ -4,10 +4,11 @@
 void shoot_worker(int sig);
 
 int energy;
+int news_queue;
 
 
 int main(int argc, char *argv[]) {
-    if (argc < 5) {
+    if (argc < 6) {
         perror("Not enough arguments\n");
         exit(-1);
     }
@@ -17,8 +18,9 @@ int main(int argc, char *argv[]) {
         exit(SIGQUIT);
     }
 
-    key_t sky_key = strtol(argv[1], NULL, 10); //convert it to long
-    key_t safe_key = strtol(argv[2], NULL, 10); //convert it to long
+    key_t sky_key = strtol(argv[1], NULL, 10);
+    key_t safe_key = strtol(argv[2], NULL, 10);
+    news_queue = atoi(argv[5]);
 
     int max_energy_decay = atoi( strtok(argv[3], "-") );
     int min_energy_decay = atoi( strtok('\0', "-") );
@@ -89,6 +91,7 @@ void shoot_worker(int sig) {
     bool die = select_from_range(1, 100) <= die_probability;
 
     if (die) {
+        alert_news(news_queue, COLLECTOR);
         printf("Worker %d is killed\n", getpid());
         exit(-1);
     }

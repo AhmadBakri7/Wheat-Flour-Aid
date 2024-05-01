@@ -1,20 +1,67 @@
-G = gcc -g
-O = -o
-names = main plane sky collector splitter occupation functions.o drawer distributor families sorter
+# Compiler and flags
+CC = gcc
+CFLAGS = -Wall
+MATH_LIB = -lm
+LDFLAGS_DRAWER = -lm -lglut -lGLU -lGL
 
-files:
-	gcc -c functions.c -o functions.o
-	$(G) plane.c functions.o $(O) plane
-	$(G) collector.c functions.o $(O) collector
-	$(G) splitter.c functions.o $(O) splitter
-	$(G) occupation.c functions.o $(O) occupation
-	$(G) sky.c functions.o $(O) sky
-	$(G) distributor.c functions.o $(O) distributor
-	$(G) families.c functions.o $(O) families
-	$(G) sorter.c $(O) sorter -lm
-	$(G) main.c -D SLEEP=70 -D DELETE $(O) main
-	gcc drawer.c $(O) drawer -lglut -lGLU -lGL -lm
+# Object file directory
+OBJ_DIR = obj
+EXE_DIR = exe
 
+# Source files for each process
+PROCESS_SOURCES = plane.c collector.c splitter.c occupation.c \
+                  sky.c distributor.c families.c sorter.c main.c drawer.c
+
+# Common object file for shared functions
+FUNCTIONS_OBJECT = $(OBJ_DIR)/functions.o
+
+# Executables (excluding drawer)
+EXECUTABLES = $(addprefix $(EXE_DIR)/,$(basename $(PROCESS_SOURCES)))
+
+MATH_USERS = sorter plane
+
+# Default target (build all executables)
+all: $(EXECUTABLES)
+
+# Rule to compile each process source file into object file
+$(OBJ_DIR)/%.o: %.c | $(OBJ_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Rule to compile functions.c into functions.o (shared functions)
+$(FUNCTIONS_OBJECT): functions.c | $(OBJ_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+
+# Rule to link each executable (except drawer) with common LDFLAGS
+$(MATH_USERS): %: $(OBJ_DIR)/%.o $(FUNCTIONS_OBJECT)
+	$(CC) $^ -o $@ $(MATH_LIB)
+
+
+# Rule to link each executable (except drawer) with common LDFLAGS
+$(filter-out $(MATH_USERS) drawer main,$(EXECUTABLES)): %: $(OBJ_DIR)/%.o $(FUNCTIONS_OBJECT) | $(EXE_DIR)
+	$(CC) $^ -o $(EXE_DIR)/$@
+
+
+# Rule to link drawer executable with specific LDFLAGS
+drawer: $(OBJ_DIR)/drawer.o $(FUNCTIONS_OBJECT) | $(EXE_DIR)
+	$(CC) $^ -o $(EXE_DIR)/$@ $(LDFLAGS_DRAWER)
+
+# Rule to link drawer executable with specific LDFLAGS
+main: $(OBJ_DIR)/main.o $(FUNCTIONS_OBJECT) | $(EXE_DIR)
+	$(CC) $^ -D SLEEP=20 -D DELETE -o $(EXE_DIR)/$@ $(LDFLAGS_DRAWER)
+
+
+# Create object file directory if it doesn't exist
+$(OBJ_DIR):
+	mkdir -p $(OBJ_DIR)
+
+# Create executable file directory if it doesn't exist
+$(EXE_DIR):
+	mkdir -p $(EXE_DIR)
+
+# Clean target (remove object files and executables)
 clean:
-	rm -f $(names)
-	
+	rm -rf $(OBJ_DIR) $(EXECUTABLES)
+
+# Phony targets
+.PHONY: all clean

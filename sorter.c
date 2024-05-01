@@ -1,9 +1,8 @@
-// Mahmoud Khatib
 #include "headers.h"
 
 
 int fid;
-int sid;
+int sorter_queue;
 int number_of_families;
 int starvation_rate_for_families[50];
 int family_max_starvation_rate_index;
@@ -19,7 +18,7 @@ int main(int argc, char* argv[]) {
     }
 
     fid = atoi(argv[1]);//the id for the families' message queue
-    sid = atoi(argv[2]);//the id for the sorter's message queue
+    sorter_queue = atoi(argv[2]);//the id for the sorter's message queue
     number_of_families = atoi(argv[3]);
 
 
@@ -38,13 +37,13 @@ int main(int argc, char* argv[]) {
 
     while (1) {
 
-        msgctl(sid, IPC_STAT, &buf);
+        msgctl(sorter_queue, IPC_STAT, &buf);
 
         if(buf.msg_qnum > 0) {
 
             for(int i = 1; i < (number_of_families+1); i++) {
 
-                if (msgrcv(sid, &familia, sizeof(familyStruct), i, IPC_NOWAIT) != -1) {
+                if (msgrcv(sorter_queue, &familia, sizeof(familyStruct), i, IPC_NOWAIT) != -1) {
                     starvation_rate_for_families[i] = familia.starvationRate;
                     printf("(sorter) received strv from (family) index %ld, strv %d\n", familia.familyIndex, familia.starvationRate);
                     fflush(NULL);         

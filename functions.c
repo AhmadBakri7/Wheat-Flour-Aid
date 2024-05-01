@@ -27,3 +27,28 @@ unsigned int get_sleep_duration(int energy) {
 
     return duration;
 }
+
+
+void alert_news(int news_queue, long process_type) {
+    NewsReport report;
+    report.process_type = process_type;
+
+    // Send message to news channels
+    if (msgsnd(news_queue, &report, sizeof(report), 0) == -1) {
+        perror("msgsnd");
+        exit(EXIT_FAILURE);
+    }
+}
+
+
+NewsReport watch_news(int news_queue, int process_type) {
+
+    NewsReport report;
+
+    if ( msgrcv(news_queue, &report, sizeof(report), process_type, 0) == -1 ) {
+        perror("msgrcv Parent (News queue)");
+        exit(SIGQUIT);
+    }
+
+    return report;
+}

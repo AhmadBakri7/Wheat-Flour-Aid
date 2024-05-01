@@ -2,7 +2,7 @@
 #include "functions.h"
 
 
-int sid;
+int sorter_queue, news_queue;
 int min_starvation_rate;
 int max_starvation_rate;
 int starvation_rate;
@@ -20,7 +20,7 @@ void increment_starvation_rate(int);
 
 int main(int argc, char* argv[]) {
 
-    if (argc < 9) {
+    if (argc < 10) {
         perror("Not Enough Args, families.c");
         exit(-1);
     }
@@ -30,7 +30,8 @@ int main(int argc, char* argv[]) {
         exit(SIGQUIT);
     }
 
-    int fid = atoi(argv[1]); //the id for the families' message queue
+    int fid = atoi(argv[1]);    /* the id for the families' message queue */
+    news_queue = atoi(argv[9]); /* The MSG queue id for news */
 
     min_starvation_rate = atoi(strtok(argv[2], "-"));
     max_starvation_rate = atoi(strtok('\0', "-"));
@@ -42,14 +43,14 @@ int main(int argc, char* argv[]) {
     starvation_survival_threshold = atoi(argv[6]);
     family_index = atoi(argv[7]);
 
-    sid = atoi(argv[8]);
+    sorter_queue = atoi(argv[8]);
 
     printf("Hello from family with index %d, pid %d, stvr: %d\n", family_index, getpid(), starvation_rate);
     fflush(NULL);
 
     familia.starvationRate = starvation_rate;
     familia.familyIndex = family_index;
-    msgsnd(sid, &familia, sizeof(familyStruct), 0);
+    msgsnd(sorter_queue, &familia, sizeof(familyStruct), 0);
 
     alarm(starvation_rate_increase_alarm);
 
@@ -66,7 +67,7 @@ int main(int argc, char* argv[]) {
 
         familia.starvationRate = starvation_rate;
         familia.familyIndex = (long)family_index;
-        msgsnd(sid, &familia, sizeof(familyStruct), 0);
+        msgsnd(sorter_queue, &familia, sizeof(familyStruct), 0);
     }
 
     return 0;
@@ -81,9 +82,11 @@ void increment_starvation_rate (int sig) {
         printf("(Family) %d is starving (%d)\n", family_index, starvation_rate);
         fflush(NULL);
 
-        msgsnd(sid, &familia, sizeof(familyStruct), 0);
+        msgsnd(sorter_queue, &familia, sizeof(familyStruct), 0);
     } else{
         printf("(family) index %d, with starvation rate %d (just died)\n", family_index, starvation_rate);
+
+        alert_news(news_queue, FAMILY);
         exit(-1);
     }
     alarm(starvation_rate_increase_alarm);
