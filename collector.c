@@ -1,19 +1,20 @@
 #include "headers.h"
 #include "functions.h"
 
-void shoot_worker(int sig);
+void got_shot(int sig);
 
 int energy;
 int news_queue;
+int my_number;
 
 
 int main(int argc, char *argv[]) {
-    if (argc < 6) {
+    if (argc < 7) {
         perror("Not enough arguments\n");
         exit(-1);
     }
 
-    if (signal(SIGUSR2, shoot_worker) == SIG_ERR) {
+    if (signal(SIGUSR2, got_shot) == SIG_ERR) {
         perror("SIGUSR2 Error in worker");
         exit(SIGQUIT);
     }
@@ -21,6 +22,7 @@ int main(int argc, char *argv[]) {
     key_t sky_key = strtol(argv[1], NULL, 10);
     key_t safe_key = strtol(argv[2], NULL, 10);
     news_queue = atoi(argv[5]);
+    my_number = atoi(argv[6]);
 
     int max_energy_decay = atoi( strtok(argv[3], "-") );
     int min_energy_decay = atoi( strtok('\0', "-") );
@@ -85,15 +87,14 @@ int main(int argc, char *argv[]) {
 }
 
 
-void shoot_worker(int sig) {
+void got_shot(int sig) {
     int die_probability = 100 - energy;
 
     bool die = select_from_range(1, 100) <= die_probability;
 
     if (die) {
-        alert_news(news_queue, COLLECTOR);
+        alert_news(news_queue, COLLECTOR, my_number);
         printf("Worker %d is killed\n", getpid());
         exit(-1);
     }
 }
-

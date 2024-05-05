@@ -3,17 +3,27 @@
 
 int energy;
 int news_queue;
+int my_number;
+
+void got_shot(int sig);
+
 
 int main(int argc, char *argv[]) {
 
-    if (argc < 7) {
+    if (argc < 8) {
         perror("Not enough arguments\n");
         exit(-1);
+    }
+
+    if (signal(SIGUSR2, got_shot) == SIG_ERR) {
+        perror("SIGUSR2 in (DISTRIBUTOR)");
+        exit(SIGQUIT);
     }
     
     int family_queue = atoi(argv[4]);
     int safe_queue = atoi(argv[1]);
     news_queue = atoi(argv[6]);
+    my_number = atoi(argv[7]);
 
     int min_energy_decay = atoi( strtok(argv[2], "-") );
     int max_energy_decay = atoi( strtok('\0', "-") );
@@ -28,22 +38,20 @@ int main(int argc, char *argv[]) {
     fflush(NULL);
     AidPackage bags[ DISTRIBUTOR_BAGS_TRIP_hold ];
 
-    // Continuously receive and process container information
     while (1) {
         int count = 0; // Counter to keep track of the number of 10 kg bags stored
 
-        // Receive a message from the queue
         for (int i = 0; i < DISTRIBUTOR_BAGS_TRIP_hold; i++) {
     
             if (msgrcv(safe_queue, &bags[i], sizeof(AidPackage), KG_BAG, 0) == -1) {
-                perror("msgrcv");
+                perror("msgrcv ddddd");
                 exit(EXIT_FAILURE);
             }
 
             printf(
                 "(Distributor) have Bag Information: Type: %ld, Weight: %d count = %d\n",
                 bags[count].package_type, bags[count].weight, count
-            ); // Print the received container information
+            );
 
             fflush(NULL);
 
@@ -62,7 +70,7 @@ int main(int argc, char *argv[]) {
             familyCritical worst_family;
 
             if (msgrcv(family_queue, &worst_family, sizeof(familyCritical), SORTER_VALUE, 0) == -1) {
-                perror("msgrcv");
+                perror("msgrcv fffff");
                 exit(EXIT_FAILURE);
             }
 
@@ -100,13 +108,13 @@ int main(int argc, char *argv[]) {
 }
 
 
-void shoot_worker(int sig) {
+void got_shot(int sig) {
     int die_probability = 100 - energy;
 
     bool die = select_from_range(1, 100) <= die_probability;
 
     if (die) {
-        alert_news(news_queue, DISTRIBUTOR);
+        alert_news(news_queue, DISTRIBUTOR, my_number);
         printf("Worker %d is killed\n", getpid());
         exit(-1);
     }

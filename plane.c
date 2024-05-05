@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
         if ( check_collision(plane_amplitude, max_planes, safe_distance, plane_number) ) {
 
             detach_memory(planes_air_space);
-            alert_news(news_queue, PLANE);
+            alert_news(news_queue, PLANE, plane_number);
             exit(1);
         }
 
@@ -141,7 +141,7 @@ bool check_collision(int plane_amplitude, int max_planes, int safe_distance, int
     /* critical section */
     for (int i = 0; i < max_planes; i++) {
 
-        printf("(Plane %d) [%d] is flying at: %d\n", plane_number, i, planes_air_space[i].amplitude);
+        // printf("(Plane %d) [%d] is flying at: %d\n", plane_number, i, planes_air_space[i].amplitude);
 
         if (i == plane_number)
             continue;
@@ -159,7 +159,7 @@ bool check_collision(int plane_amplitude, int max_planes, int safe_distance, int
         }
     }
 
-    int collision_probability = (count * 5) * (count > 2);
+    int collision_probability = (count * 5) * (count > 1);
     bool collide = select_from_range(1, 100) <= collision_probability;
 
     if (collide) {
@@ -167,7 +167,7 @@ bool check_collision(int plane_amplitude, int max_planes, int safe_distance, int
         planes_air_space[nearest_plane_index].amplitude = 0;
 
         kill(nearest_plane, SIGUSR1);
-        printf("(Plane) %d has collided with Plane %d -> %d\n", plane_number, nearest_plane_index, nearest_plane);
+        printf("(Plane) %d has collided with Plane %d -> %d, count=%d\n", plane_number, nearest_plane_index, nearest_plane, count);
         fflush(stdout);
     }
     /* end of critical section */
@@ -201,7 +201,7 @@ void cleanup(int sig) {
 
     detach_memory(planes_air_space);
 
-    alert_news(news_queue, PLANE);
+    alert_news(news_queue, PLANE, plane_number);
     
     exit(0);
 }
@@ -213,7 +213,7 @@ void semaphore_acquire(int sem_num) {
     // write the amplitude the shared memory
     if (semop(semid, &acquire, 1) == -1) {
         perror("semop Child");
-        cleanup(SIGINT);
+        exit(1);
     }
 }
 

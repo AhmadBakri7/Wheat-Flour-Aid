@@ -12,9 +12,7 @@ int starvation_rate_increase_alarm;
 int starvation_survival_threshold;
 int family_index;
 
-
 familyStruct familia;
-
 
 void increment_starvation_rate(int);
 
@@ -86,7 +84,7 @@ void increment_starvation_rate (int sig) {
     } else{
         printf("(family) index %d, with starvation rate %d (just died)\n", family_index, starvation_rate);
 
-        alert_news(news_queue, FAMILY);
+        alert_news(news_queue, FAMILY, family_index);
         exit(-1);
     }
     alarm(starvation_rate_increase_alarm);

@@ -64,6 +64,7 @@ int main(int argc, char* argv[]) {
                 package.package_type = CONTAINER;
 
                 package.weight = drops[i].weight;
+                printf("Package (Amp: %d) sent to collector from sky\n", drops[i].amplitude);
 
                 // swap drops[i] with current_drop (last drop) (soft delete).
                 drops[i].package_type = drops[current_drop-1].package_type;
@@ -76,7 +77,6 @@ int main(int argc, char* argv[]) {
                     perror("Child: msgsend");
                     return 4;
                 }
-                printf("Package (Amp: %d) sent to collector from sky\n", drops[i].amplitude);
             }
         }
     }
@@ -103,21 +103,21 @@ void missile_attack(int sig) {
         current_drop--;
         printf("(SKY) Destroyed package (%d) has now weight: %d\n", random_drop, drops[random_drop].weight);
 
-        alert_news(news_queue, SKY);
+        alert_news(news_queue, SKY, random_drop);
 
     } else if (drops[random_drop].amplitude > 300 && drops[random_drop].amplitude < threshold) {
         drops[random_drop].weight /= 3;
         drops[random_drop].amplitude = 0;
         printf("Destroyed package (%d) has now weight: %d\n", random_drop, drops[random_drop].weight);
 
-        alert_news(news_queue, SKY);
+        alert_news(news_queue, SKY, random_drop);
 
     } else if (drops[random_drop].amplitude > 100 && drops[random_drop].amplitude < 300) {
         drops[random_drop].weight /= 2;
         drops[random_drop].amplitude = 0;
         printf("Destroyed package (%d) has now weight: %d\n", random_drop, drops[random_drop].weight);
 
-        alert_news(news_queue, SKY);
+        alert_news(news_queue, SKY, random_drop);
     }
 }
 

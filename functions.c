@@ -1,6 +1,10 @@
 #include "headers.h"
 
 int select_from_range(int min, int max) {
+
+    if (max < min)
+        return min;
+        
     srand(time(NULL) + getpid());
 
     int range = max - min + 1;
@@ -29,9 +33,10 @@ unsigned int get_sleep_duration(int energy) {
 }
 
 
-void alert_news(int news_queue, long process_type) {
+void alert_news(int news_queue, long process_type, int index) {
     NewsReport report;
     report.process_type = process_type;
+    report.process_index = index;
 
     // Send message to news channels
     if (msgsnd(news_queue, &report, sizeof(report), 0) == -1) {
