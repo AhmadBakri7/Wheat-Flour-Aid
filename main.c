@@ -38,7 +38,7 @@ static int SIMULATION_TIME;
 
 
 void readFile(char* filename);
-void create_message_queues(key_t, key_t, key_t, key_t, key_t);
+void create_message_queues(key_t, key_t, key_t, key_t, key_t, key_t);
 void init_shared_memory();
 void terminate_all_children(pid_t* all_children[], int size, int* num_children);
 void terminate_children(pid_t* children, int num_children);
@@ -47,7 +47,7 @@ void delete_all_ipc();
 void time_limit(int sig);
 void program_exit(int sig);
 
-int sky_queue, safe_queue, family_queue, sorter_queue, news_queue;
+int sky_queue, safe_queue, family_queue, sorter_queue, news_queue, drawer_queue;
 int plane_sem, plane_shmem, sorter_sem, sorter_shmem;
 
 bool simulation_finished = false;
@@ -83,11 +83,12 @@ int main(int argc, char* argv[]) {
     key_t families_key = ftok(".", 'F');
     key_t news_queue_key = ftok(".", 'N');
     key_t sorter_key = ftok(".", 'R');
+    key_t drawer_key = ftok(".", 'D');
 
     key_t psem_key = ftok(".", ('P' + 'S'));
     key_t pshmem_key = ftok(".", ('P' + 'M'));
 
-    create_message_queues(sky_queue_key, safe_area_key, families_key, sorter_key, news_queue_key);
+    create_message_queues(sky_queue_key, safe_area_key, families_key, sorter_key, news_queue_key, drawer_key);
 
     printf("Fam_Key: %d, Safe_area_key: %d\n", family_queue, safe_queue);
 
@@ -119,6 +120,7 @@ int main(int argc, char* argv[]) {
     pid_t distributors[NUM_DISTRIBUTORS]; /* pids for all distributors */
     pid_t families[NUM_FAMILIES];         /* pids for all families */
     pid_t sky_process, sorter_process, occupation;
+    pid_t drawer;
 
     // pid_t* all_children[] = {planes, collectors, splitters, distributors, families, &sky_process, &sorter_process, &occupation};
     // int sizes[] = {NUM_PLANES, NUM_COLLECTORS, NUM_SPLITTERS, NUM_DISTRIBUTORS, NUM_FAMILIES, 1, 1, 1};
@@ -133,6 +135,7 @@ int main(int argc, char* argv[]) {
             char sem[20], shmem[20];
             char safe_distance[20];
             char n_queue[20];
+            char drawer_q[20];
 
             sprintf(m_id, "%d", sky_queue);
             sprintf(n_queue, "%d", news_queue);
@@ -142,12 +145,13 @@ int main(int argc, char* argv[]) {
             sprintf(max_planes, "%d", NUM_PLANES);
             sprintf(num, "%d", i);
             sprintf(safe_distance, "%d", PLANE_SAFE_DISTANCE);
+            sprintf(drawer_q, "%d", drawer_queue);
             
             execlp(
                 "./plane", "plane", m_id,
                 CARGO_SIZE_RANGE, AMPLITUDE_RANGE, WEIGHT_PER_CONTAINER,
                 drop_p, REFILL_RANGE,
-                sem, shmem, max_planes, num, safe_distance, n_queue, NULL
+                sem, shmem, max_planes, num, safe_distance, n_queue, drawer_q, NULL
             );
             perror("Exec Plane Error");
             exit(SIGQUIT);
@@ -168,16 +172,18 @@ int main(int argc, char* argv[]) {
             char safe_key[20];
             char news_id[20];
             char index[20];
+            char drawer_q[20];
             
             sprintf(sky_key, "%d", (int)sky_queue_key);
             sprintf(safe_key, "%d", safe_area_key);
             sprintf(news_id, "%d", news_queue);
+            sprintf(drawer_q, "%d", drawer_queue);
             sprintf(index, "%d", i);
 
             execlp(
                 "./collector", "collector",
                 sky_key, safe_key,
-                WORKERS_ENERGY_DECAY, WORKERS_START_ENERGY, news_id, index, NULL
+                WORKERS_ENERGY_DECAY, WORKERS_START_ENERGY, news_id, index, drawer_q, NULL
             );
             perror("execlp");
             exit(EXIT_FAILURE);
@@ -190,13 +196,17 @@ int main(int argc, char* argv[]) {
 
         if (splitters[i] == 0) {
             char msgqueue_id[20];
+            char drawer_q[20];
+            char i_char[20];
 
             sprintf(msgqueue_id, "%d", safe_queue);
+            sprintf(drawer_q, "%d", drawer_queue);
+            sprintf(i_char, "%d", i);
 
             execlp(
                 "./splitter", "splitter",
                 msgqueue_id,
-                WORKERS_ENERGY_DECAY, WORKERS_START_ENERGY, NULL
+                WORKERS_ENERGY_DECAY, WORKERS_START_ENERGY, drawer_q, i_char, NULL
             );
             perror("execlp");
             exit(EXIT_FAILURE);
@@ -213,9 +223,11 @@ int main(int argc, char* argv[]) {
             char num_of_can_hold[20];
             char msgqueue_family[20];
             char index[20];
+            char queue_d[20];
 
             sprintf(msgqueue_id_safe, "%d", safe_queue);
             sprintf(msgqueue_id_news, "%d", news_queue);
+            sprintf(queue_d, "%d", drawer_queue);
             sprintf(num_of_can_hold, "%d", DISTRIBUTOR_BAGS_TRIP);
             sprintf(msgqueue_family, "%d", family_queue);
             sprintf(index, "%d", i);
@@ -224,7 +236,7 @@ int main(int argc, char* argv[]) {
                 "./distributor", "distributor",
                 msgqueue_id_safe, WORKERS_ENERGY_DECAY, 
                 num_of_can_hold, msgqueue_family, WORKERS_START_ENERGY,
-                msgqueue_id_news, index,
+                msgqueue_id_news, index, queue_d,
                 NULL
             );
             perror("execlp");
@@ -268,11 +280,14 @@ int main(int argc, char* argv[]) {
     if (sky_process == 0) {
         char m_id[20], news_msg_queue[20];
         char drop[20];
+        char drawer_q[20];
+
         sprintf(m_id, "%d", sky_queue);
+        sprintf(drawer_q, "%d", drawer_queue);
         sprintf(news_msg_queue, "%d", news_queue);
         sprintf(drop, "%d", DROP_LOST_THRESHOLD);
 
-        execlp("./sky", "sky", m_id, drop, news_msg_queue, NULL);
+        execlp("./sky", "sky", m_id, drop, news_msg_queue, drawer_q, NULL);
         perror("Exec Sky Error");
         exit(SIGQUIT);
     }
@@ -333,6 +348,29 @@ int main(int argc, char* argv[]) {
         execlp("./occupation", "occupation", sky_pid, workers, num_workers, sky_parachutes_id, brutality, NULL);
 
         perror("Occupation Exec Error");
+        exit(SIGQUIT);
+    }
+
+    // fork drawer
+    drawer = fork();
+
+    if (drawer == 0) {
+        char drawer_q[20];
+        char num_pl[20];
+        char num_coll[20];
+        char num_spl[20];
+        char num_dist[20];
+        char num_fam[20];
+
+        sprintf(drawer_q, "%d", drawer_queue);
+        sprintf(num_pl, "%d", NUM_PLANES);
+        sprintf(num_coll, "%d", NUM_COLLECTORS);
+        sprintf(num_spl, "%d", NUM_SPLITTERS);
+        sprintf(num_dist, "%d", NUM_DISTRIBUTORS);
+        sprintf(num_fam, "%d", NUM_FAMILIES);
+
+        execlp("./drawer", "drawer", drawer_q, num_pl, num_coll, num_dist, num_spl, num_fam, NULL);
+        perror("Exec Drawer failed");
         exit(SIGQUIT);
     }
 
@@ -436,7 +474,6 @@ int main(int argc, char* argv[]) {
 
                 int switch_splitter_probability = (splitters_distributor_ratio * 100) / NUM_DISTRIBUTORS;
                 bool make_switch = select_from_range(1, 100) <= switch_splitter_probability;
-                // bool make_switch = true;
   
                 if (make_switch) {
 
@@ -511,44 +548,21 @@ int main(int argc, char* argv[]) {
     sleep(SLEEP);
 #endif
 
+    // MESSAGE msg = {PLANE, .data.planes = {2, 1, 200, false}};
+    // msg.data.planes.num_containers = 2;
+    // msg.data.planes.plane_number = 1;
+    // msg.data.planes.amplitude = 200;
+    // msg.data.planes.refilling = true;
+
+    // if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1) {
+    //     perror("msgsnd");
+    //     exit(EXIT_FAILURE);
+    // }
+
     pid_t* all_children[] = {collectors, splitters, distributors, planes, &sky_process, &occupation, &sorter_process, families};
     int sizes[] = {NUM_COLLECTORS, NUM_SPLITTERS, NUM_DISTRIBUTORS, NUM_PLANES, 1, 1, 1, NUM_FAMILIES};
 
     terminate_all_children(all_children, NUM_CHILDREN_ARRAYS, sizes);
-
-    // for (int i = 0; i < NUM_COLLECTORS; i++) {
-    //     kill(collectors[i], SIGINT);
-    //     wait(NULL);
-    // }
-
-    // for (int i = 0; i < NUM_SPLITTERS; i++) {
-    //     kill(splitters[i], SIGINT);
-    //     wait(NULL);
-    // }
-    
-    // for (int i = 0; i < NUM_DISTRIBUTORS; i++) {
-    //     kill(distributors[i], SIGINT);
-    //     wait(NULL);
-    // }
-
-    // for (int i = 0; i < NUM_PLANES; i++) {
-    //     kill(planes[i], SIGINT);
-    //     wait(NULL);
-    // }
-
-    // kill(sky_process, SIGINT);
-    // wait(NULL);
-
-    // kill(occupation, SIGINT);
-    // wait(NULL);
-
-    // kill(sorter_process, SIGINT);
-    // wait(NULL);
-
-    // for (int i = 0; i < NUM_FAMILIES; i++) {
-    //     kill(families[i], SIGINT);
-    //     wait(NULL);
-    // }
 
     while ( wait(NULL) > 0 );
 
@@ -667,7 +681,7 @@ void readFile(char* filename) {
 }
 
 
-void create_message_queues(key_t sky_queue_key, key_t safe_area_key, key_t families_key, key_t sorter_key, key_t news_key) {
+void create_message_queues(key_t sky_queue_key, key_t safe_area_key, key_t families_key, key_t sorter_key, key_t news_key, key_t drawer_key) {
     
     if ( (sky_queue = msgget(sky_queue_key, IPC_CREAT | 0770)) == -1 ) {
         perror("Queue create");
@@ -690,6 +704,11 @@ void create_message_queues(key_t sky_queue_key, key_t safe_area_key, key_t famil
     }
 
     if ( (news_queue = msgget(news_key, IPC_CREAT | 0770)) == -1 ) {
+        perror("Queue create");
+        exit(1);
+    }
+
+    if ( (drawer_queue = msgget(drawer_key, IPC_CREAT | 0770)) == -1 ) {
         perror("Queue create");
         exit(1);
     }
@@ -743,6 +762,11 @@ void delete_all_ipc() {
     }
 
     if (msgctl(sorter_queue, IPC_RMID, (struct msqid_ds *) 0) == -1) {
+        perror("msgctl");
+        exit(EXIT_FAILURE);
+    }
+
+    if (msgctl(drawer_queue, IPC_RMID, (struct msqid_ds *) 0) == -1) {
         perror("msgctl");
         exit(EXIT_FAILURE);
     }

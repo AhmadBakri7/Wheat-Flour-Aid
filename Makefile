@@ -47,7 +47,7 @@ drawer: $(OBJ_DIR)/drawer.o $(FUNCTIONS_OBJECT)
 
 # Rule to link drawer executable with specific LDFLAGS
 main: $(OBJ_DIR)/main.o $(FUNCTIONS_OBJECT)
-	$(CC) $^ -D SLEEP=20 -D DELETE -o $@ $(LDFLAGS_DRAWER)
+	$(CC) $^ -D DELETE -o $@ $(LDFLAGS_DRAWER)
 
 
 # Create object file directory if it doesn't exist

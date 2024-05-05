@@ -1,9 +1,11 @@
-#include <GL/glut.h>
-#include <math.h>
+#include "headers.h"
 
 // Window size constants
 const int WINDOW_WIDTH = 1900;
 const int WINDOW_HEIGHT = 980;
+int drawer_queue;
+
+#define PI 3.14159265358979323846
 
 // Global variables for animation
 float containerPosY = 700.0f; // Initial Y position of the container
@@ -15,7 +17,25 @@ float angle = 0.0f; // Angle for swinging motion
 float occupationTrianglePosition = 0.0f;
 int counter = 0;
 
+GUI_Plane planes[100];
+GUI_Drop drops[100];
+GUI_Collector collectors[100];
+GUI_Splitter splitters[100];
+GUI_Distributor distributors[100];
+GUI_Family families[100];
+
+int num_planes;
+int num_drops;
+int num_collectors;
+int num_splitters;
+int num_distributors;
+int num_families;
+
+int containers_in_safe_house = 0;
+int kg_bags_in_safe_house = 0;
+
 void setupProjectionMatrix();
+void read_from_queue();
 
 void drawContainer(float size) {
     glColor3f(0.8f, 0.3f, 0.3f); // Red color for the container
@@ -574,6 +594,136 @@ void drawMountain(float x, float y, float width, float height){
     glEnd();
 
 }
+
+void drawCane() {
+    glBegin(GL_POLYGON);
+        glColor3f(0.0f, 1.0f, 0.0f);
+        glVertex2f(0.2, -0.8);
+        glVertex2f(0.2, 0.2);
+
+        glVertex2f(0.1, -0.8);
+        glVertex2f(0.1, 0.2);
+
+        glVertex2f(0.1, -0.8);
+        glVertex2f(0.2, -0.8);
+
+        glVertex2f(0.2, 0.2);
+        glVertex2f(0.1, 0.2);
+    glEnd();
+
+    glBegin(GL_POLYGON);
+    glColor3f(1.0f, 0.0f, 0.0f);
+        glVertex2f(0.25, -0.8);
+        glVertex2f(0.05, -0.8);
+
+        glVertex2f(0.25, -0.8);
+        glVertex2f(0.25, -0.9);
+
+        glVertex2f(0.05, -0.8);
+        glVertex2f(0.05, -0.9);
+
+        glVertex2f(0.25, -0.9);
+        glVertex2f(0.05, -0.9);
+
+
+    glEnd();
+
+    glBegin(GL_POLYGON);
+        glColor3f(0.0f, 0.0f, 0.0f);
+        glVertex2f(-0.29, 0.1);
+        glVertex2f(-0.42, 0.1);
+
+        glVertex2f(-0.29 + 0.005, 0.25);
+        glVertex2f(-0.42 + 0.005, 0.25);
+
+        glVertex2f(-0.29, 0.1);
+        glVertex2f(-0.29 + 0.005, 0.25);
+
+        glVertex2f(-0.42, 0.1);
+        glVertex2f(-0.42 + 0.005, 0.25);
+    glEnd();
+
+    float x_initial_one;
+    float y_initial_one;
+    float x_initial_two;
+    float y_initial_two;
+
+    glBegin(GL_LINE_STRIP);
+        for (int i = 0; i <= 180; i++) {
+            float angle = PI * i / 180;  // Convert angle to radians
+            float x = -0.1 + 0.2 * cos(angle);  // Calculate x coordinate
+            float y = 0.2 + 0.2 * sin(angle);  // Calculate y coordinate
+            if (i==0){
+                x_initial_one = x;
+                y_initial_one = y;
+            }
+            glVertex2f(x, y);
+        }
+    glEnd();
+    glBegin(GL_LINE_STRIP);
+        for (int i = 0; i <= 180; i++) {
+            float angle = PI * i / 180;  // Convert angle to radians
+            float x = -0.1 + 0.3 * cos(angle);  // Calculate x coordinate
+            float y = 0.2 + 0.3 * sin(angle);  // Calculate y coordinate
+            if (i==0){
+                x_initial_two = x;
+                y_initial_two = y;
+            }
+            glVertex2f(x, y);
+        }
+    glEnd();
+
+    glBegin(GL_LINES);
+        glVertex2f(x_initial_one, y_initial_one);
+        glVertex2f(x_initial_two, y_initial_two);
+    glEnd();
+
+}
+
+void drawPlayerWithCane(float x, float y) {
+    // Set player color
+    glColor3f(1.0f, 0.0f, 0.0f); // Set color to green
+
+    glLineWidth(1.5);
+    // Draw head
+    drawCircle(x, y + 0.08f, 0.03f, 20);
+
+    glColor3f(1.0f, 1.0f, 1.0f); // Set color to white
+    //draw eyes
+    drawCircle(x-0.015, y + 0.09f, 0.006f, 10);//left eye
+    drawCircle(x+0.015, y + 0.09f, 0.006f, 10);//right eye
+    //draw mouth
+    drawRectangle(x-0.021, y+0.065, 0.04, 0.003);
+
+    glColor3f(1.0f, 0.0f, 0.0f); // Set color to green
+    // Draw body
+    glBegin(GL_LINES);
+    glVertex2f(x, y + 0.05); // Body's upper point
+    glVertex2f(x, y - 0.1f); // Body's lower point
+    glEnd();
+
+    // Draw arms
+    glBegin(GL_LINES);
+    glVertex2f(x, y + 0.01f); // Arms' upper point
+    glVertex2f(x - 0.05f, y - 0.03f); // Left arm's lower point
+    
+    glEnd();
+    glBegin(GL_LINES);
+    glVertex2f(x, y + 0.01f); // Arms' upper point
+    glVertex2f(x + 0.05f, y - 0.03f); // Right arm's lower point
+    glEnd();
+
+    // Draw legs
+    glBegin(GL_LINES);
+    glVertex2f(x, y - 0.1f); // Legs' upper point
+    glVertex2f(x - 0.03f, y - 0.15f); // Left leg's lower point
+    glEnd();
+    glBegin(GL_LINES);
+    glVertex2f(x, y - 0.1f); // Legs' upper point
+    glVertex2f(x + 0.03f, y - 0.15f); // Right leg's lower point
+    glEnd();
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Function to set up the projection matrix
@@ -598,34 +748,135 @@ void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
 
-    // Drawing the container with parachute
-    for (float i = 100; i < 400; i += 100) {
-        drawFallingContainerWithParachute(i, 0.9, 0.9);
+    read_from_queue();
+
+    for(int i = 0; i<num_planes; i++){// Drawing the airplane
+
+        if (!planes[i].destroyed) {
+
+            drawAirplane((WINDOW_WIDTH / 25)+(i*150), WINDOW_HEIGHT - 100, 70, 70);
+
+            glColor3f(0.8f, 0.3f, 0.3f); // Red color for the container
+
+            char buff[1000];
+            sprintf(buff, "Amp: %d", planes[i].amplitude);
+            drawText((WINDOW_WIDTH / 25)+(i*150) - 40, WINDOW_HEIGHT - 150, buff);
+
+            sprintf(buff, "num_con: %d", planes[i].num_containers);
+            drawText((WINDOW_WIDTH / 25)+(i*150) - 40, WINDOW_HEIGHT - 170, buff);
+
+            sprintf(buff, "refill: %d", planes[i].refilling);
+            drawText((WINDOW_WIDTH / 25)+(i*150) - 40, WINDOW_HEIGHT - 190, buff);
+
+            sprintf(buff, "number: %d", planes[i].plane_number);
+            drawText((WINDOW_WIDTH / 25)+(i*150) - 40, WINDOW_HEIGHT - 210, buff);
+        }
     }
 
-    // Drawing the airplane
-    drawAirplane(WINDOW_WIDTH / 20, WINDOW_HEIGHT - 100, 100, 100);
+    // // Drawing the container with parachute
+    // int j = 0;
+
+    // for (float i = 100; i < (num_drops + 1) * 100; i += 100) {
+
+    //     // Update animation state
+    //     if (drops[j].amplitude >= 50) {
+    //         angle += 0.05f;
+    //         drawFallingContainerWithParachute(i, 0.8, 0.8, drops[j].amplitude + 50);
+    //     }
+    //     j++;
+    // }
+
+    for (float i = 100; i < (400); i += 100) {
+        drawFallingContainerWithParachute(i, 0.8, 0.8);
+    }
+    char buff[1000];
+    
 
     glPushMatrix();
     glTranslatef(800, 295, 0); //safe house
     glScalef(300, 300, 1.0f); 
-    drawHouse(-0.85f, -0.9, 0.9f, 0.9f); 
+    drawHouse(-0.85f, -0.9, 0.9f, 0.9f);
     glPopMatrix();
 
-    glPushMatrix();
-    glTranslatef(750, 115, 0); // splitter
-    glScalef(600, 600, 1.0f); 
-    drawPlayerRectangleHat(0,0); 
-    glPopMatrix();
-    
-    for(int i=0; i<3; i++){
+    glColor3f(0, 0, 0);
+
+    sprintf(buff, "containersNum: %d", containers_in_safe_house);
+    drawText(800, 300, buff);
+
+    sprintf(buff, "KG_bags: %d", kg_bags_in_safe_house);
+    drawText(800, 330, buff);
+
+    glColor3f(0, 0, 0);
+    sprintf(buff, "Num_drops: %d", num_drops);
+    drawText(100, 400, buff);
+
+    for (int i = 0; i < num_splitters; i++) {
         glPushMatrix();
-        glTranslatef(80+(i*100), 115, 0); // collector
-        glScalef(600, 600, 1.0f); 
-        drawPlayerTriangleHat(0,0);
-        glPopMatrix(); 
+        glTranslatef(600 + (i*100), 115, 0); // splitter
+        glScalef(600, 600, 1.0f);
+        drawPlayerRectangleHat(0,0);
+        glPopMatrix();
+
+        glColor3f(0, 0, 0);
+
+        char buff[1000];
+        sprintf(buff, "Num: %d", splitters[i].number);
+        drawText(600+(i*100) - 20, 50, buff);
+
+        sprintf(buff, "E: %d", splitters[i].energy);
+        drawText(600+(i*100) - 20, 80, buff);
+
+        sprintf(buff, "KG: %d", splitters[i].weight);
+        drawText(600+(i*100) - 20, 110, buff);
     }
     
+    for(int i=0; i<num_collectors; i++){
+
+        if (!collectors[i].killed) {
+            glPushMatrix();
+            glTranslatef(80+(i*100), 130, 0); // collector
+            glScalef(600, 600, 1.0f); 
+            drawPlayerTriangleHat(0,0);
+            // draw energy bar
+            glPopMatrix();
+
+            glColor3f(0, 0, 0);
+
+            char buff[1000];
+            sprintf(buff, "Num: %d", collectors[i].number);
+            drawText(80+(i*100) - 20, 70, buff);
+
+            sprintf(buff, "E: %d", collectors[i].energy);
+            drawText(80+(i*100) - 20, 90, buff);
+
+            sprintf(buff, "Con: %d", collectors[i].containers);
+            drawText(80+(i*100) - 20, 110, buff);
+        }
+    }
+
+    for (int i = 0; i < num_distributors; i++) {
+
+        if (!distributors[i].killed) {
+            glPushMatrix();//distributor
+            glTranslatef(900 + (i*80), 115, 0); 
+            glScalef(600, 600, 1.0f); 
+            drawPlayer(0,0); 
+            glPopMatrix();
+
+            glColor3f(0, 0, 0);
+
+            char buff[1000];
+            sprintf(buff, "Num: %d", distributors[i].number);
+            drawText(900+(i*100) - 20, 70, buff);
+
+            sprintf(buff, "E: %d", distributors[i].energy);
+            drawText(900+(i*100) - 20, 90, buff);
+
+            sprintf(buff, "Bags: %d", distributors[i].bags);
+            drawText(900+(i*100) - 20, 110, buff);
+        }
+    }
+
     glPushMatrix();//flag
     drawFlag(1333, 270, 100, 60); 
     glPopMatrix();
@@ -646,17 +897,34 @@ void display() {
     drawSniper(1370, 410, 100, 100); 
     glPopMatrix();
 
-    glPushMatrix();//distributor
-    glTranslatef(1000, 115, 0); 
-    glScalef(600, 600, 1.0f); 
-    drawPlayer(0,0); 
-    glPopMatrix();
-
     glPushMatrix();//occupation
     glTranslatef(1683, 510, 0);  
     glScalef(600, 600, 1.0f);
     drawOccupation(0,0); 
     glPopMatrix();
+
+    GLfloat family_x;
+    GLfloat family_y;
+    GLfloat cane_x;
+    GLfloat cane_y;
+
+    family_x = 1230;
+    family_y = 110;
+    cane_x = family_x + 50;
+    cane_y = family_y - 27;
+    
+    glPushMatrix();//family
+    glTranslatef(family_x, family_y, 0);  
+    glScalef(600, 600, 1.0f);
+    drawPlayerWithCane(0,0); 
+    glPopMatrix();
+
+    glPushMatrix();//cane for family
+    glTranslatef(cane_x, cane_y, 0);  
+    glScalef(70, 70, 1.0f);
+    drawCane(); 
+    glPopMatrix();
+
 
     if (counter %10 == 0){
         if (occupationTrianglePosition == 0.0f){
@@ -682,11 +950,154 @@ void timer(int value) {
         angle += 0.05f;
         containerPosY -= containerSpeed;
     }
+}
 
+void read_from_queue() {
+
+    struct msqid_ds buf;
+    msgctl(drawer_queue, IPC_STAT, &buf);
+
+    for (int i = 0; i < buf.msg_qnum; i++) {
+
+        MESSAGE msg;
+
+        if (msgrcv(drawer_queue, &msg, sizeof(msg), 0, IPC_NOWAIT) == -1) {
+            perror("msg error");
+            exit(-1);
+        }
+
+        switch (msg.type)
+        {
+        case PLANE:
+            planes[ msg.data.planes.plane_number ].num_containers = msg.data.planes.num_containers;
+            planes[ msg.data.planes.plane_number ].amplitude = msg.data.planes.amplitude;
+            planes[ msg.data.planes.plane_number ].refilling = msg.data.planes.refilling;
+            planes[ msg.data.planes.plane_number ].plane_number = msg.data.planes.plane_number;
+            planes[ msg.data.planes.plane_number ].destroyed = msg.data.planes.destroyed;
+
+            if (msg.operation == 1) 
+                num_drops++;
+
+            // printf(
+            //     "(PLANE) num: %d, amp: %d, refilling: %d, plane_num: %d\n",
+            //     msg.data.planes.num_containers,
+            //     msg.data.planes.amplitude,
+            //     msg.data.planes.refilling,
+            //     msg.data.planes.plane_number
+            // );
+            break;
+        
+        case COLLECTOR:
+            collectors[ msg.data.collector.number ].number = msg.data.collector.number;
+            collectors[ msg.data.collector.number ].energy = msg.data.collector.energy;
+            collectors[ msg.data.collector.number ].containers = msg.data.collector.containers;
+            collectors[ msg.data.collector.number ].killed = msg.data.collector.killed;
+
+            if (msg.operation == 2)
+                containers_in_safe_house++;
+            else if (msg.operation == 1)
+                num_drops--;
+
+            // printf(
+            //     "(COLLECTOR) num: %d, energy: %d, containers: %d, killed: %d\n",
+            //     msg.data.collector.number,
+            //     msg.data.collector.energy,
+            //     msg.data.collector.containers,
+            //     msg.data.collector.killed
+            // );
+
+            if (msg.data.collector.killed)
+                num_collectors--;
+            
+            break;
+
+        case SPLITTER:
+            splitters[ msg.data.splitter.number ].number = msg.data.splitter.number;
+            splitters[ msg.data.splitter.number ].energy = msg.data.splitter.energy;
+            splitters[ msg.data.splitter.number ].weight = msg.data.splitter.weight;
+            splitters[ msg.data.splitter.number ].swapped = msg.data.splitter.swapped;
+
+            if (msg.operation == 1)
+                kg_bags_in_safe_house++;
+
+            if (msg.operation == 2)
+                containers_in_safe_house--;
+
+            // printf(
+            //     "(SPLIT) num: %d, energy: %d, Swapped: %d\n",
+            //     msg.data.splitter.number,
+            //     msg.data.splitter.energy,
+            //     msg.data.splitter.swapped
+            // );
+            break;
+
+        case DISTRIBUTOR:
+            distributors[ msg.data.distributor.number ].number = msg.data.distributor.number;
+            distributors[ msg.data.distributor.number ].energy = msg.data.distributor.energy;
+            distributors[ msg.data.distributor.number ].bags = msg.data.distributor.bags;
+            distributors[ msg.data.distributor.number ].killed = msg.data.distributor.killed;
+
+            if (msg.operation == 1)
+                kg_bags_in_safe_house--;
+
+            // printf(
+            //     "(DIS) num: %d, energy: %d, bags: %d, killed: %d\n",
+            //     msg.data.distributor.number,
+            //     msg.data.distributor.energy,
+            //     msg.data.distributor.bags,
+            //     msg.data.distributor.killed
+            // );
+
+            if (msg.data.splitter.swapped) {
+                num_collectors++;
+            }
+            break;
+
+        case FAMILY:
+            families[ msg.data.families.number ].number = msg.data.families.number;
+            families[ msg.data.families.number ].starvation_rate = msg.data.families.starvation_rate;
+            families[ msg.data.families.number ].alive = msg.data.families.alive;
+
+            // printf(
+            //     "(Fam) num: %d, energy: %d, alive: %d\n",
+            //     msg.data.families.number,
+            //     msg.data.families.starvation_rate,
+            //     msg.data.families.alive
+            // );
+            break;
+
+        case SKY:
+            drops[ msg.data.sky.drop_number ].amplitude = msg.data.sky.amplitude;
+            drops[ msg.data.sky.drop_number ].weight = msg.data.sky.weight;
+            drops[ msg.data.sky.drop_number ].number = msg.data.sky.drop_number;
+
+            // printf(
+            //     "(SKY) num: %d, amp: %d, weight: %d, num_drops: %d\n",
+            //     msg.data.sky.drop_number,
+            //     msg.data.sky.amplitude,
+            //     msg.data.sky.weight,
+            //     msg.data.sky.num_drops
+            // );
+            break;
+        }
+    }
 }
 
 // Main function
 int main(int argc, char** argv) {
+
+    if (argc < 7) {
+        perror("Not enough args (DRAWER)");
+        exit(-1);
+    }
+    drawer_queue = atoi(argv[1]);
+
+    num_planes = atoi(argv[2]);
+    num_collectors = atoi(argv[3]);
+    num_distributors = atoi(argv[4]);
+    num_splitters = atoi(argv[5]);
+    num_families = atoi(argv[6]);
+
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);

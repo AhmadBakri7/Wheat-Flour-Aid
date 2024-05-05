@@ -4,13 +4,14 @@
 int energy;
 int news_queue;
 int my_number;
+int drawer_queue;
 
 void got_shot(int sig);
 
 
 int main(int argc, char *argv[]) {
 
-    if (argc < 8) {
+    if (argc < 9) {
         perror("Not enough arguments\n");
         exit(-1);
     }
@@ -24,6 +25,7 @@ int main(int argc, char *argv[]) {
     int safe_queue = atoi(argv[1]);
     news_queue = atoi(argv[6]);
     my_number = atoi(argv[7]);
+    drawer_queue = atoi(argv[8]);
 
     int min_energy_decay = atoi( strtok(argv[2], "-") );
     int max_energy_decay = atoi( strtok('\0', "-") );
@@ -36,6 +38,15 @@ int main(int argc, char *argv[]) {
 
     printf("(distributor) with pid (%d) is ready to receive bag information ...\n",getpid());
     fflush(NULL);
+
+    // send info to drawer
+    MESSAGE msg = {DISTRIBUTOR, 0, .data.distributor = {energy, my_number, 0, false}};
+
+    if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+        perror("Child: msgsend");
+        return 4;
+    }
+
     AidPackage bags[ DISTRIBUTOR_BAGS_TRIP_hold ];
 
     while (1) {
@@ -52,10 +63,16 @@ int main(int argc, char *argv[]) {
                 "(Distributor) have Bag Information: Type: %ld, Weight: %d count = %d\n",
                 bags[count].package_type, bags[count].weight, count
             );
-
             fflush(NULL);
-
             count++;
+
+            // send info to drawer
+            MESSAGE msg = {DISTRIBUTOR, 1, .data.distributor = {energy, my_number, count, false}};
+
+            if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+                perror("Child: msgsend");
+                return 4;
+            }
         }
 
         sleep( get_sleep_duration(energy) );
@@ -89,7 +106,6 @@ int main(int argc, char *argv[]) {
             }
             count -= sent_bags;
 
-
             printf(
                 "(Distributor) feeds family %d\n",
                 worst_family.family_index
@@ -98,7 +114,15 @@ int main(int argc, char *argv[]) {
         
             energy -= select_from_range(min_energy_decay, max_energy_decay);
 
-            sleep(1);
+            // send info to drawer
+            MESSAGE msg = {DISTRIBUTOR, 0, .data.distributor = {energy, my_number, count, false}};
+
+            if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+                perror("Child: msgsend");
+                return 4;
+            }
+
+            sleep( get_sleep_duration(energy) );
 
             if (count == 0)
                 break;
@@ -116,6 +140,13 @@ void got_shot(int sig) {
     if (die) {
         alert_news(news_queue, DISTRIBUTOR, my_number);
         printf("Worker %d is killed\n", getpid());
+
+        // send info to drawer
+        MESSAGE msg = {DISTRIBUTOR, 0, .data.distributor = {energy, my_number, 0, true}};
+
+        if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+            perror("Child: msgsend");
+        }
         exit(-1);
     }
 }

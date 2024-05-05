@@ -12,7 +12,7 @@ void cleanup(int sig);
 
 int shmid, semid;
 int plane_number, max_planes;
-int news_queue;
+int news_queue, drawer_queue;
 AirSpace *planes_air_space;
 
 
@@ -21,7 +21,7 @@ struct sembuf release = {0, 1, SEM_UNDO};
 
 int main(int argc, char* argv[]) {
 
-    if (argc < 13) {
+    if (argc < 14) {
         perror("Not Enough Args, plane.c");
         exit(-1);
     }
@@ -33,6 +33,7 @@ int main(int argc, char* argv[]) {
 
     int sky_queue = atoi(argv[1]);      /* the id for the sky message queue */
     news_queue = atoi(argv[12]);        /* the id for the news message queue */
+    drawer_queue = atoi(argv[13]);
     semid = atoi(argv[7]);              /* semaphore id */
     shmid = atoi(argv[8]);              /* shared memory id */
     max_planes = atoi(argv[9]);         /* max number of planes in the sky */
@@ -81,10 +82,26 @@ int main(int argc, char* argv[]) {
     
     write_Plane_info(plane_amplitude, plane_number);
 
+    // send info to drawer
+    MESSAGE msg = {PLANE, 0, .data.planes = {containers - current_drop, plane_number, plane_amplitude, false, false}};
+
+    if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+        perror("Child: msgsend");
+        return 4;
+    }
+
     while (1) {
 
         /* collision happened */
         if ( check_collision(plane_amplitude, max_planes, safe_distance, plane_number) ) {
+            
+            // send info to drawer
+            MESSAGE msg = {PLANE, 0, .data.planes = {containers - current_drop, plane_number, plane_amplitude, false, true}};
+
+            if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+                perror("Child: msgsend");
+                return 4;
+            }
 
             detach_memory(planes_air_space);
             alert_news(news_queue, PLANE, plane_number);
@@ -98,7 +115,13 @@ int main(int argc, char* argv[]) {
         
         current_drop++;
 
-        sleep(drop_period);
+        // send info to drawer
+        MESSAGE msg = {PLANE, 1, .data.planes = {containers - current_drop, plane_number, plane_amplitude, false, false}};
+
+        if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+            perror("Child: msgsend");
+            return 4;
+        }
 
         // refill
         if (current_drop == containers) {
@@ -116,6 +139,14 @@ int main(int argc, char* argv[]) {
                 drops[i].amplitude = plane_amplitude;
             }
 
+            // send info to drawer
+            MESSAGE msg = {PLANE, 0, .data.planes = {containers - current_drop, plane_number, 0, true, false}};
+
+            if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+                perror("Child: msgsend");
+                return 4;
+            }
+
             sleep( (unsigned) select_from_range(min_refill, max_refill) ); /* refill time */
 
             containers = new_containers;
@@ -123,7 +154,22 @@ int main(int argc, char* argv[]) {
             printf("Plane %d, is flying at %d\n", plane_number, plane_amplitude);
 
             write_Plane_info(plane_amplitude, plane_number);
+
+            // send info to drawer
+            msg.type = PLANE;
+            msg.data.planes.num_containers = containers;
+            msg.data.planes.plane_number = plane_number;
+            msg.data.planes.amplitude = plane_amplitude;
+            msg.data.planes.refilling = false;
+            msg.data.planes.destroyed = false;
+
+            if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+                perror("Child: msgsend");
+                return 4;
+            }
         }
+
+        sleep(drop_period);
     }
 
     detach_memory(planes_air_space);
@@ -202,6 +248,13 @@ void cleanup(int sig) {
     detach_memory(planes_air_space);
 
     alert_news(news_queue, PLANE, plane_number);
+
+    // send info to drawer
+    MESSAGE msg = {PLANE, .data.planes = {0, plane_number, 0, false, true}};
+
+    if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+        perror("Child: msgsend");
+    }
     
     exit(0);
 }

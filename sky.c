@@ -12,7 +12,7 @@ AidDrop drops[100];
 
 int main(int argc, char* argv[]) {
 
-    if (argc < 4) {
+    if (argc < 5) {
         perror("Not Enough Args, plane.c");
         exit(-1);
     }
@@ -24,6 +24,7 @@ int main(int argc, char* argv[]) {
     }
 
     int sky_queue = atoi(argv[1]);    /* message queue ID for the sky queue */
+    int drawer_queue = atoi(argv[4]);
     news_queue = atoi(argv[3]); /* message queue ID for the news queue */
     threshold = atoi(argv[2]);  /* exploded drops above threshold gets totally lost */
 
@@ -42,6 +43,15 @@ int main(int argc, char* argv[]) {
                 //     "current_drop: %d, Message-type: %ld, Weight: %d, amplitude: %d\n",
                 //     current_drop, drops[current_drop].package_type, drops[current_drop].weight, drops[current_drop].amplitude
                 // );
+
+                // send info to drawer
+                MESSAGE msg = {SKY, 0, .data.sky = {current_drop, drops[i].weight, drops[i].amplitude}};
+
+                if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+                    perror("Child: msgsend");
+                    return 4;
+                }
+
                 current_drop++;
             }
         }
@@ -77,6 +87,14 @@ int main(int argc, char* argv[]) {
                     perror("Child: msgsend");
                     return 4;
                 }
+            }
+
+            // send info to drawer
+            MESSAGE msg = {SKY, 0, .data.sky = {current_drop, drops[i].weight, drops[i].amplitude}};
+
+            if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+                perror("Child: msgsend");
+                return 4;
             }
         }
     }

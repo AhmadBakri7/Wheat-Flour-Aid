@@ -45,8 +45,8 @@ int main(int argc, char* argv[]) {
 
                 if (msgrcv(sorter_queue, &familia, sizeof(familyStruct), i, IPC_NOWAIT) != -1) {
                     starvation_rate_for_families[i] = familia.starvationRate;
-                    printf("(sorter) received strv from (family) index %ld, strv %d\n", familia.familyIndex, familia.starvationRate);
-                    fflush(NULL);         
+                    // printf("(sorter) received strv from (family) index %ld, strv %d\n", familia.familyIndex, familia.starvationRate);
+                    // fflush(NULL);         
                 }
             }
 
@@ -60,9 +60,9 @@ int main(int argc, char* argv[]) {
                 }
             }
             
-            printf("(sorter) calculated that max is family index %d strv %d\n",
-                    family_max_starvation_rate_index, starvation_rate_for_families[family_max_starvation_rate_index]);
-            fflush(NULL);
+            // printf("(sorter) calculated that max is family index %d strv %d\n",
+            //         family_max_starvation_rate_index, starvation_rate_for_families[family_max_starvation_rate_index]);
+            // fflush(NULL);
  
             familyCritical emptyQueue;
             msgrcv(fid, &emptyQueue, sizeof(familyCritical), SORTER_VALUE, IPC_NOWAIT);

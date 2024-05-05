@@ -43,8 +43,8 @@ int main(int argc, char* argv[]) {
 
     sorter_queue = atoi(argv[8]);
 
-    printf("Hello from family with index %d, pid %d, stvr: %d\n", family_index, getpid(), starvation_rate);
-    fflush(NULL);
+    // printf("Hello from family with index %d, pid %d, stvr: %d\n", family_index, getpid(), starvation_rate);
+    // fflush(NULL);
 
     familia.starvationRate = starvation_rate;
     familia.familyIndex = family_index;
@@ -60,8 +60,8 @@ int main(int argc, char* argv[]) {
 
         starvation_rate -= (starvation_rate_decrease_constant * bag.weight);
 
-        printf("(family) index %d Ate, strv %d\n", family_index, starvation_rate);
-        fflush(NULL);
+        // printf("(family) index %d Ate, strv %d\n", family_index, starvation_rate);
+        // fflush(NULL);
 
         familia.starvationRate = starvation_rate;
         familia.familyIndex = (long)family_index;
@@ -77,8 +77,8 @@ void increment_starvation_rate (int sig) {
         starvation_rate += starvation_rate_increase_constant;
         familia.starvationRate = starvation_rate;
         familia.familyIndex = (long)family_index;
-        printf("(Family) %d is starving (%d)\n", family_index, starvation_rate);
-        fflush(NULL);
+        // printf("(Family) %d is starving (%d)\n", family_index, starvation_rate);
+        // fflush(NULL);
 
         msgsnd(sorter_queue, &familia, sizeof(familyStruct), 0);
     } else{

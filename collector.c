@@ -6,10 +6,11 @@ void got_shot(int sig);
 int energy;
 int news_queue;
 int my_number;
+int drawer_queue;
 
 
 int main(int argc, char *argv[]) {
-    if (argc < 7) {
+    if (argc < 8) {
         perror("Not enough arguments\n");
         exit(-1);
     }
@@ -22,6 +23,7 @@ int main(int argc, char *argv[]) {
     key_t sky_key = strtol(argv[1], NULL, 10);
     key_t safe_key = strtol(argv[2], NULL, 10);
     news_queue = atoi(argv[5]);
+    drawer_queue = atoi(argv[7]);
     my_number = atoi(argv[6]);
 
     int max_energy_decay = atoi( strtok(argv[3], "-") );
@@ -47,6 +49,14 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    // send info to drawer
+    MESSAGE msg = {COLLECTOR, 0, .data.collector = {energy, my_number, 0, false}};
+
+    if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+        perror("Child: msgsend");
+        return 4;
+    }
+
     printf("(Collector) with pid (%d) is ready to receive Containers,(ENERGY)=%d\n",  getpid(), energy);
 
     // Define a buffer to store received messages
@@ -56,7 +66,10 @@ int main(int argc, char *argv[]) {
     while (1) {
     
         // Receive a message from the queue
-        while (msgrcv(sky_id, &received_containers_from_sky, sizeof(AidPackage), CONTAINER, 0) == -1);
+        if (msgrcv(sky_id, &received_containers_from_sky, sizeof(AidPackage), CONTAINER, 0) == -1) {
+            perror("lkfgjdlkfgjdlfg");
+            exit(-1);
+        }
 
         // Print the received message
         printf(
@@ -64,6 +77,14 @@ int main(int argc, char *argv[]) {
             getpid(),received_containers_from_sky.package_type, received_containers_from_sky.weight
         );
         fflush(stdout);
+
+        // send info to drawer
+        MESSAGE msg = {COLLECTOR, 1, .data.collector = {energy, my_number, 1, false}};
+
+        if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+            perror("Child: msgsend");
+            return 4;
+        }
 
         sleep( get_sleep_duration(energy) );
 
@@ -78,6 +99,19 @@ int main(int argc, char *argv[]) {
         fflush(stdout);
 
         energy -= select_from_range(min_energy_decay, max_energy_decay);
+
+        // send info to drawer
+        msg.type = COLLECTOR;
+        msg.operation = 2;
+        msg.data.collector.energy = energy;
+        msg.data.collector.containers = 0;
+        msg.data.collector.number = my_number;
+        msg.data.collector.killed = false;
+
+        if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+            perror("Child: msgsend");
+            return 4;
+        }
     }
        
     printf("Collector exited successfully\n");
@@ -93,6 +127,14 @@ void got_shot(int sig) {
     bool die = select_from_range(1, 100) <= die_probability;
 
     if (die) {
+
+        // send info to drawer
+        MESSAGE msg = {COLLECTOR, .data.collector = {energy, my_number, 0, true}};
+
+        if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
+            perror("Child: msgsend");
+        }
+
         alert_news(news_queue, COLLECTOR, my_number);
         printf("Worker %d is killed\n", getpid());
         exit(-1);
