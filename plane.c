@@ -187,8 +187,6 @@ bool check_collision(int plane_amplitude, int max_planes, int safe_distance, int
     /* critical section */
     for (int i = 0; i < max_planes; i++) {
 
-        // printf("(Plane %d) [%d] is flying at: %d\n", plane_number, i, planes_air_space[i].amplitude);
-
         if (i == plane_number)
             continue;
 
@@ -220,9 +218,6 @@ bool check_collision(int plane_amplitude, int max_planes, int safe_distance, int
 
     // Release the semaphore (unlock)
     semaphore_release(0);
-
-    // int collision_probability = 100 - ( (count / max_planes) * 100 )
-    // int collision_probability = (count < 5)? (count*10) : 100;
     
     return collide;
 }

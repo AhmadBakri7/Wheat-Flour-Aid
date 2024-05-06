@@ -43,33 +43,7 @@ int main(int argc, char* argv[]) {
 
     while (1) {
 
-        // msgctl(sky_queue, IPC_STAT, &buf);
-        
-        // for (int i = 0; i < buf.msg_qnum; i++)
-        // {
-        //     if ( msgrcv(sky_queue, &drops[current_drop], BUFSIZ, DROP, 0) != -1 ) {
-        //         // printf(
-        //         //     "current_drop: %d, Message-type: %ld, Weight: %d, amplitude: %d\n",
-        //         //     current_drop, drops[current_drop].package_type, drops[current_drop].weight, drops[current_drop].amplitude
-        //         // );
-
-        //         // send info to drawer (Drop is in the sky now)
-        //         MESSAGE msg = {SKY, 0, .data.sky = {drop_number, drops[i].weight, drops[i].amplitude}};
-
-        //         if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
-        //             perror("Child: msgsend");
-        //             return 4;
-        //         }
-
-        //         current_drop++;
-        //         drop_number++;
-        //     }
-        // }
         if ( msgrcv(sky_queue, &drops[current_drop], BUFSIZ, DROP, 0) != -1 ) {
-            // printf(
-            //     "current_drop: %d, Message-type: %ld, Weight: %d, amplitude: %d\n",
-            //     current_drop, drops[current_drop].package_type, drops[current_drop].weight, drops[current_drop].amplitude
-            // );
 
             drops[current_drop].number = drop_number;
 

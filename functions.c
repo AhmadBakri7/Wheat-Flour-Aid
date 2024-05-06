@@ -44,16 +44,3 @@ void alert_news(int news_queue, long process_type, int index) {
         exit(EXIT_FAILURE);
     }
 }
-
-
-NewsReport watch_news(int news_queue, int process_type) {
-
-    NewsReport report;
-
-    if ( msgrcv(news_queue, &report, sizeof(report), process_type, 0) == -1 ) {
-        perror("msgrcv Parent (News queue)");
-        exit(SIGQUIT);
-    }
-
-    return report;
-}

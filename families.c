@@ -69,8 +69,8 @@ int main(int argc, char* argv[]) {
 
         starvation_rate -= (starvation_rate_decrease_constant * bag.weight);
 
-        // printf("(family) index %d Ate, strv %d\n", family_index, starvation_rate);
-        // fflush(NULL);
+        printf("(family) index %d Ate, strv %d\n", family_index, starvation_rate);
+        fflush(NULL);
 
         familia.starvationRate = starvation_rate;
         familia.familyIndex = (long)family_index;

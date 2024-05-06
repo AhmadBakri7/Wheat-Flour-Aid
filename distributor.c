@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_FAILURE);
             }
 
-            printf("-----(Distributor) Has Received the most f*** family from (sorter), bags: %d-------, index %d\n", 
+            printf("-----(Distributor) Has Received the most starving family from (sorter), bags: %d-------, index %d\n", 
                     worst_family.num_bags_required, worst_family.family_index);
             fflush(NULL);
 
@@ -115,7 +115,6 @@ int main(int argc, char *argv[]) {
             energy -= select_from_range(min_energy_decay, max_energy_decay);
 
             // send info to drawer (give bags to families)
-            // also send the number of bags given, and to which family
             MESSAGE msg = {DISTRIBUTOR, 0, .data.distributor = {energy, my_number, count, false, getpid()}};
 
             if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {

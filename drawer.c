@@ -1042,12 +1042,6 @@ void display() {
 void timer(int value) {
     glutPostRedisplay(); // Redraw the scene
     glutTimerFunc(16, timer, 0); // Re-register timer callback
-
-    // Update animation state
-    // if (containerPosY >= 50) {
-    //     angle += 0.05f;
-    //     containerPosY -= containerSpeed;
-    // }
 }
 
 int get_zero_amp() {
@@ -1123,28 +1117,9 @@ void read_from_queue() {
             if (msg.data.planes.destroyed)
                 plane_collisions++;
 
-            // if (msg.operation == 1)
-            //     num_drops++;
-
-            // printf(
-            //     "(PLANE) num: %d, amp: %d, refilling: %d, plane_num: %d\n",
-            //     msg.data.planes.num_containers,
-            //     msg.data.planes.amplitude,
-            //     msg.data.planes.refilling,
-            //     msg.data.planes.plane_number
-            // );
             break;
         
         case COLLECTOR:
-            // index = find_collector(msg.data.collector.pid);
-
-            // printf("kfghjkljdfhgkdfjhg: %d, index: %d\n", msg.data.collector.pid, index);
-
-            // collectors[ index ].pid = msg.data.collector.pid;
-            // collectors[ index ].number = msg.data.collector.number;
-            // collectors[ index ].energy = msg.data.collector.energy;
-            // collectors[ index ].containers = msg.data.collector.containers;
-            // collectors[ index ].killed = msg.data.collector.killed;
 
             collectors[ msg.data.collector.number ].pid = msg.data.collector.pid;
             collectors[ msg.data.collector.number ].number = msg.data.collector.number;
@@ -1167,14 +1142,6 @@ void read_from_queue() {
 
                 num_drops--; /* in the sky */
             }
-
-            // printf(
-            //     "(COLLECTOR) num: %d, energy: %d, containers: %d, killed: %d\n",
-            //     msg.data.collector.number,
-            //     msg.data.collector.energy,
-            //     msg.data.collector.containers,
-            //     msg.data.collector.killed
-            // );
             
             break;
 
@@ -1239,13 +1206,6 @@ void read_from_queue() {
             splitters[ index ].energy = msg.data.splitter.energy;
             splitters[ index ].weight = msg.data.splitter.weight;
 
-
-            // printf(
-            //     "(SPLIT) num: %d, energy: %d, Swapped: %d\n",
-            //     msg.data.splitter.number,
-            //     msg.data.splitter.energy,
-            //     msg.data.splitter.swapped
-            // );
             break;
 
         case DISTRIBUTOR:
@@ -1261,14 +1221,6 @@ void read_from_queue() {
             if (msg.operation == 1)
                 kg_bags_in_safe_house--;
 
-            // printf(
-            //     "(DIS) num: %d, energy: %d, bags: %d, killed: %d\n",
-            //     msg.data.distributor.number,
-            //     msg.data.distributor.energy,
-            //     msg.data.distributor.bags,
-            //     msg.data.distributor.killed
-            // );
-
             break;
 
         case FAMILY:
@@ -1276,12 +1228,6 @@ void read_from_queue() {
             families[ msg.data.families.number ].starvation_rate = msg.data.families.starvation_rate;
             families[ msg.data.families.number ].alive = msg.data.families.alive;
 
-            // printf(
-            //     "(Fam) num: %d, energy: %d, alive: %d\n",
-            //     msg.data.families.number,
-            //     msg.data.families.starvation_rate,
-            //     msg.data.families.alive
-            // );
             break;
 
         case SKY:
@@ -1300,21 +1246,15 @@ void read_from_queue() {
                     drops[index].amplitude = drops[num_drops-1].amplitude;
                     drops[index].weight = drops[num_drops-1].weight;
                     num_drops--;
-                    destroyed_drops++;
                 } else {
                     drops[ index ].amplitude = msg.data.sky.amplitude;
                     drops[ index ].weight = msg.data.sky.weight;
                     drops[ index ].number = msg.data.sky.drop_number;
                 }
-            }
 
-            // printf(
-            //     "(SKY) num: %d, amp: %d, weight: %d, num_drops: %d\n",
-            //     msg.data.sky.drop_number,
-            //     msg.data.sky.amplitude,
-            //     msg.data.sky.weight,
-            //     msg.data.sky.num_drops
-            // );
+                if (msg.operation == 2 || msg.operation == 3)
+                    destroyed_drops++;
+            }
             break;
 
         case SORTER:

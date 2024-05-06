@@ -555,17 +555,6 @@ int main(int argc, char* argv[]) {
     sleep(SLEEP);
 #endif
 
-    // MESSAGE msg = {PLANE, .data.planes = {2, 1, 200, false}};
-    // msg.data.planes.num_containers = 2;
-    // msg.data.planes.plane_number = 1;
-    // msg.data.planes.amplitude = 200;
-    // msg.data.planes.refilling = true;
-
-    // if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1) {
-    //     perror("msgsnd");
-    //     exit(EXIT_FAILURE);
-    // }
-
     pid_t* all_children[] = {collectors, splitters, distributors, planes, &sky_process, &occupation, &sorter_process, families};
     int sizes[] = {NUM_COLLECTORS, NUM_SPLITTERS, NUM_DISTRIBUTORS, NUM_PLANES, 1, 1, 1, NUM_FAMILIES};
 

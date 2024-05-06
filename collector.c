@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
     while (1) {
     
         if (msgrcv(sky_id, &received_containers_from_sky, sizeof(AidPackage), CONTAINER, 0) == -1) {
-            perror("lkfgjdlkfgjdlfg");
+            perror("msgrcv");
         }
 
         printf(
@@ -133,5 +133,4 @@ void got_shot(int sig) {
         printf("Worker %d is killed\n", getpid());
         exit(-1);
     }
-    // energy -= select_from_range(min);
 }
