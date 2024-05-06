@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
     }
 
     // send info to drawer
-    MESSAGE msg = {COLLECTOR, 0, .data.collector = {energy, my_number, 0, false}};
+    MESSAGE msg = {COLLECTOR, 0, .data.collector = {energy, my_number, 0, false, getpid()}};
 
     if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
         perror("Child: msgsend");
@@ -65,25 +65,21 @@ int main(int argc, char *argv[]) {
     // Continuously receive and process messages
     while (1) {
     
-        // Receive a message from the queue
         if (msgrcv(sky_id, &received_containers_from_sky, sizeof(AidPackage), CONTAINER, 0) == -1) {
             perror("lkfgjdlkfgjdlfg");
-            exit(-1);
         }
 
-        // Print the received message
         printf(
             "(COLLECTOR) with pid (%d) Received Container: Type: %ld, Weight: %d\n",
             getpid(),received_containers_from_sky.package_type, received_containers_from_sky.weight
         );
         fflush(stdout);
 
-        // send info to drawer
-        MESSAGE msg = {COLLECTOR, 1, .data.collector = {energy, my_number, 1, false}};
+        // send info to drawer (Collected a container)
+        MESSAGE msg = {COLLECTOR, 1, .data.collector = {energy, my_number, 1, false, getpid()}};
 
         if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
             perror("Child: msgsend");
-            return 4;
         }
 
         sleep( get_sleep_duration(energy) );
@@ -91,7 +87,6 @@ int main(int argc, char *argv[]) {
         // Send message to splitter
         if (msgsnd(safe_id, &received_containers_from_sky, sizeof(AidPackage), 0) == -1) {
             perror("msgsnd");
-            exit(EXIT_FAILURE);
         }
 
         // Print a message indicating that the container information has been sent to the splitter
@@ -100,7 +95,7 @@ int main(int argc, char *argv[]) {
 
         energy -= select_from_range(min_energy_decay, max_energy_decay);
 
-        // send info to drawer
+        // send info to drawer (Putting container in safe house)
         msg.type = COLLECTOR;
         msg.operation = 2;
         msg.data.collector.energy = energy;
@@ -110,7 +105,6 @@ int main(int argc, char *argv[]) {
 
         if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
             perror("Child: msgsend");
-            return 4;
         }
     }
        
@@ -129,7 +123,7 @@ void got_shot(int sig) {
     if (die) {
 
         // send info to drawer
-        MESSAGE msg = {COLLECTOR, .data.collector = {energy, my_number, 0, true}};
+        MESSAGE msg = {COLLECTOR, 0, .data.collector = {energy, my_number, 0, true, getpid()}};
 
         if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
             perror("Child: msgsend");
@@ -139,4 +133,5 @@ void got_shot(int sig) {
         printf("Worker %d is killed\n", getpid());
         exit(-1);
     }
+    // energy -= select_from_range(min);
 }

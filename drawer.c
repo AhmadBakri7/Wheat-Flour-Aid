@@ -8,7 +8,7 @@ int drawer_queue;
 #define PI 3.14159265358979323846
 
 // Global variables for animation
-float containerPosY = 700.0f; // Initial Y position of the container
+// float containerPosY = 700.0f; // Initial Y position of the container
 float parachuteSize = 50.0f; // Size of the parachute
 float containerSize = 50.0f; // Size of the container
 float containerSpeed = 1.0f; // Falling speed of the container
@@ -24,6 +24,10 @@ GUI_Splitter splitters[100];
 GUI_Distributor distributors[100];
 GUI_Family families[100];
 
+int sorter_fam_index;
+int sorter_fam_rate;
+int sorter_fam_bags;
+
 int num_planes;
 int num_drops;
 int num_collectors;
@@ -33,6 +37,11 @@ int num_families;
 
 int containers_in_safe_house = 0;
 int kg_bags_in_safe_house = 0;
+int plane_collisions = 0;
+int drops_on_ground = 0;
+int destroyed_drops = 0;
+int killed_collectors = 0;
+int killed_distributors = 0;
 
 void setupProjectionMatrix();
 void read_from_queue();
@@ -65,7 +74,7 @@ void drawRope() {
     glEnd();
 }
 
-void drawFallingContainerWithParachute(float i, float width, float height) {
+void drawFallingContainerWithParachute(float i, float width, float height, float containerPosY) {
     glPushMatrix();
     float swingX = swingAmplitude * sin(angle); // Calculate swinging motion
     glTranslatef(i + swingX, containerPosY, 0.0f); // Apply translation for swing and initial position
@@ -346,7 +355,7 @@ void drawPlayerRectangleHat(float x, float y) {
 
 void drawOccupation(float x, float y) {
     // Set player color
-    glColor3f(0.0f, 1.0f, 0.0f); // Set color to orange
+    glColor3f(0.0f, 1.0f, 1.0f);
 
     // Draw head
     glLineWidth(1.5);
@@ -356,7 +365,7 @@ void drawOccupation(float x, float y) {
     //draw hat
     drawTriangle(x-0.024, y+0.07+occupationTrianglePosition, 0.05, 0.05, 2);
 
-    glColor3f(0.0f, 0.0f, 0.0f); // Set color to white
+    glColor3f(1.0f, 0.0f, 0.0f); // Set color to white
     //draw eyes
     drawCircle(x-0.015, y + 0.09f, 0.006f, 10);//left eye
     drawCircle(x+0.015, y + 0.09f, 0.006f, 10);//right eye
@@ -371,6 +380,52 @@ void drawOccupation(float x, float y) {
     glEnd();
 
     // Draw arms
+    glBegin(GL_LINES);
+    glVertex2f(x, y + 0.01f); // Arms' upper point
+    
+    glVertex2f(x - 0.05f, y + 0.05f); // Left arm's lower point
+    
+    glEnd();
+    glBegin(GL_LINES);
+    glVertex2f(x, y + 0.01f); // Arms' upper point
+    glVertex2f(x + 0.05f, y + 0.05f); // Right arm's lower point
+    glEnd();
+
+    // Draw legs
+    glBegin(GL_LINES);
+    glVertex2f(x, y - 0.1f); // Legs' upper point
+    glVertex2f(x - 0.03f, y - 0.15f); // Left leg's lower point
+    glEnd();
+    glBegin(GL_LINES);
+    glVertex2f(x, y - 0.1f); // Legs' upper point
+    glVertex2f(x + 0.03f, y - 0.15f); // Right leg's lower point
+    glEnd();
+}
+
+void drawSorter(float x, float y) {
+    // Set player color
+    glColor3f(1.0f, 0.0f, 0.0f); // Set color to orange
+
+    // Draw head
+    glLineWidth(1.5);
+    drawCircle(x, y + 0.08f, 0.03f, 20);
+
+    glColor3f(1.0f, 1.0f, 1.0f); // Set color to white
+    //draw eyes
+    drawCircle(x-0.015, y + 0.09f, 0.006f, 10);//left eye
+    drawCircle(x+0.015, y + 0.09f, 0.006f, 10);//right eye
+    //draw mouth
+    drawRectangle(x-0.021, y+0.065, 0.04, 0.003);
+
+    glColor3f(0.0f, 1.0f, 0.0f); // Set color to orange
+    // Draw body
+    glBegin(GL_LINES);
+    glVertex2f(x, y + 0.05); // Body's upper point
+    glVertex2f(x, y - 0.1f); // Body's lower point
+    glEnd();
+
+    // Draw arms
+    glColor3f(0.0f, 0.0f, 0.0f); // Set color to orange
     glBegin(GL_LINES);
     glVertex2f(x, y + 0.01f); // Arms' upper point
     
@@ -451,7 +506,7 @@ void drawFlag(float x, float y, float width, float height) {
 
 void drawTent(GLfloat x, GLfloat y, GLfloat width, GLfloat height) {
     glBegin(GL_POLYGON);
-    glColor3f(0,0,1);
+    glColor3f(0,.7,.7);
     glVertex2f(x, y);
     glVertex2f(x + width, y);
     glVertex2f(x + width, y);
@@ -682,9 +737,8 @@ void drawCane() {
 
 void drawPlayerWithCane(float x, float y) {
     // Set player color
-    glColor3f(1.0f, 0.0f, 0.0f); // Set color to green
+    glColor3f(1.0f, 0.0f, 0.0f); // Set color to red
 
-    glLineWidth(1.5);
     // Draw head
     drawCircle(x, y + 0.08f, 0.03f, 20);
 
@@ -773,24 +827,20 @@ void display() {
         }
     }
 
-    // // Drawing the container with parachute
-    // int j = 0;
+    for (int i = 0; i < num_drops; i++) {
+        drawFallingContainerWithParachute( ((i+1) * 80) % 400 + 50, 0.8, 0.8, drops[i].amplitude + 50 );
 
-    // for (float i = 100; i < (num_drops + 1) * 100; i += 100) {
+        char buff[1000];
+        glColor3f(0, 0, 0);
 
-    //     // Update animation state
-    //     if (drops[j].amplitude >= 50) {
-    //         angle += 0.05f;
-    //         drawFallingContainerWithParachute(i, 0.8, 0.8, drops[j].amplitude + 50);
-    //     }
-    //     j++;
-    // }
+        sprintf(buff, "%d", drops[i].amplitude);
+        drawText(((i+1) * 80) % 400 + 30, (drops[i].amplitude + 70) + 50, buff);
 
-    for (float i = 100; i < (400); i += 100) {
-        drawFallingContainerWithParachute(i, 0.8, 0.8);
+        sprintf(buff, "%d.KG", drops[i].weight);
+        drawText(((i+1) * 80) % 400 + 35, (drops[i].amplitude - 10) + 50, buff);
     }
-    char buff[1000];
     
+    char buff[1000];
 
     glPushMatrix();
     glTranslatef(800, 295, 0); //safe house
@@ -806,13 +856,29 @@ void display() {
     sprintf(buff, "KG_bags: %d", kg_bags_in_safe_house);
     drawText(800, 330, buff);
 
+    // statistics text
     glColor3f(0, 0, 0);
-    sprintf(buff, "Num_drops: %d", num_drops);
-    drawText(100, 400, buff);
+
+    sprintf(buff, "Destroyed Drops: %d", destroyed_drops);
+    drawText(600, 800, buff);
+
+    sprintf(buff, "Destroyed Planes: %d", plane_collisions);
+    drawText(600, 770, buff);
+
+    sprintf(buff, "Killed Collectors: %d", killed_collectors);
+    drawText(600, 740, buff);
+
+    sprintf(buff, "Killed Distributors: %d", killed_distributors);
+    drawText(600, 710, buff);
+
 
     for (int i = 0; i < num_splitters; i++) {
+        
+        if (splitters[i].swapped)
+            continue;
+
         glPushMatrix();
-        glTranslatef(600 + (i*100), 115, 0); // splitter
+        glTranslatef(580 + (i*80), 115, 0); // splitter
         glScalef(600, 600, 1.0f);
         drawPlayerRectangleHat(0,0);
         glPopMatrix();
@@ -820,14 +886,14 @@ void display() {
         glColor3f(0, 0, 0);
 
         char buff[1000];
-        sprintf(buff, "Num: %d", splitters[i].number);
-        drawText(600+(i*100) - 20, 50, buff);
+        sprintf(buff, "%d", splitters[i].pid);
+        drawText(565+(i*80) - 20, 10, buff);
 
         sprintf(buff, "E: %d", splitters[i].energy);
-        drawText(600+(i*100) - 20, 80, buff);
+        drawText(580+(i*80) - 20, 80, buff);
 
         sprintf(buff, "KG: %d", splitters[i].weight);
-        drawText(600+(i*100) - 20, 110, buff);
+        drawText(580+(i*80) - 20, 110, buff);
     }
     
     for(int i=0; i<num_collectors; i++){
@@ -843,8 +909,8 @@ void display() {
             glColor3f(0, 0, 0);
 
             char buff[1000];
-            sprintf(buff, "Num: %d", collectors[i].number);
-            drawText(80+(i*100) - 20, 70, buff);
+            sprintf(buff, "%d", collectors[i].pid);
+            drawText(70+(i*100) - 20, 10, buff);
 
             sprintf(buff, "E: %d", collectors[i].energy);
             drawText(80+(i*100) - 20, 90, buff);
@@ -866,19 +932,19 @@ void display() {
             glColor3f(0, 0, 0);
 
             char buff[1000];
-            sprintf(buff, "Num: %d", distributors[i].number);
-            drawText(900+(i*100) - 20, 70, buff);
+            sprintf(buff, "%d", distributors[i].pid);
+            drawText(890+(i*80) - 20, 10, buff);
 
             sprintf(buff, "E: %d", distributors[i].energy);
-            drawText(900+(i*100) - 20, 90, buff);
+            drawText(900+(i*80) - 20, 90, buff);
 
             sprintf(buff, "Bags: %d", distributors[i].bags);
-            drawText(900+(i*100) - 20, 110, buff);
+            drawText(900+(i*80) - 20, 110, buff);
         }
     }
 
     glPushMatrix();//flag
-    drawFlag(1333, 270, 100, 60); 
+    drawFlag(1433, 270, 100, 60); 
     glPopMatrix();
 
     glPushMatrix();//tent
@@ -903,28 +969,60 @@ void display() {
     drawOccupation(0,0); 
     glPopMatrix();
 
+    glPushMatrix();//sorter
+    glTranslatef(1330, 310, 0);
+    glScalef(600, 600, 1.0f);
+    drawSorter(0,0); 
+    glPopMatrix();
+
+    drawText(1300, 380, "Sorter");
+
+    sprintf(buff, "index: %d", sorter_fam_index);
+    drawText(1300, 280, buff);
+
+    sprintf(buff, "starve_rate: %d", sorter_fam_rate);
+    drawText(1300, 250, buff);
+
+    sprintf(buff, "Bags: %d", sorter_fam_bags);
+    drawText(1300, 220, buff);
+
     GLfloat family_x;
     GLfloat family_y;
     GLfloat cane_x;
     GLfloat cane_y;
 
-    family_x = 1230;
-    family_y = 110;
-    cane_x = family_x + 50;
-    cane_y = family_y - 27;
-    
-    glPushMatrix();//family
-    glTranslatef(family_x, family_y, 0);  
-    glScalef(600, 600, 1.0f);
-    drawPlayerWithCane(0,0); 
-    glPopMatrix();
 
-    glPushMatrix();//cane for family
-    glTranslatef(cane_x, cane_y, 0);  
-    glScalef(70, 70, 1.0f);
-    drawCane(); 
-    glPopMatrix();
+    for (int i = 0; i < num_families; i++) {
 
+        if (!families[i].alive)
+            continue;
+
+        family_x = 1230 + (i*100);
+        family_y = 110;
+        cane_x = family_x + 50;
+        cane_y = family_y - 27;
+        
+        glPushMatrix();
+        glTranslatef(family_x, family_y, 0);  
+        glScalef(600, 600, 1.0f);
+        drawPlayerWithCane(0,0); 
+        glPopMatrix();
+
+        glPushMatrix();//cane for family
+        glTranslatef(cane_x, cane_y, 0);  
+        glScalef(70, 70, 1.0f);
+        drawCane(); 
+        glPopMatrix();
+
+        glColor3f(0, 0, 0);
+
+        char buff[1000];
+        sprintf(buff, "Num: %d", families[i].number);
+        drawText(family_x - 20, 50, buff);
+
+        sprintf(buff, "Strv: %d", families[i].starvation_rate);
+        drawText(family_x - 20, 70, buff);
+    }
 
     if (counter %10 == 0){
         if (occupationTrianglePosition == 0.0f){
@@ -946,10 +1044,55 @@ void timer(int value) {
     glutTimerFunc(16, timer, 0); // Re-register timer callback
 
     // Update animation state
-    if (containerPosY >= 50) {
-        angle += 0.05f;
-        containerPosY -= containerSpeed;
+    // if (containerPosY >= 50) {
+    //     angle += 0.05f;
+    //     containerPosY -= containerSpeed;
+    // }
+}
+
+int get_zero_amp() {
+
+    for (int i = 0; i < num_drops; i++) {
+        if (drops[i].amplitude == 0)
+            return i;
     }
+    return -1;
+}
+
+int find_drop_by_id(int id) {
+
+    for (int i = 0; i < num_drops; i++) {
+        if (drops[i].number == id)
+            return i;
+    }
+    return -1;
+}
+
+int find_dead_collector() {
+
+    for (int i = 0; i < num_collectors; i++) {
+        if (collectors[i].killed)
+            return i;
+    }
+    return -1;
+}
+
+int find_collector(pid_t pid) {
+
+    for (int i = 0; i < num_collectors; i++) {
+        if (collectors[i].pid == pid)
+            return i;
+    }
+    return -1;
+}
+
+int find_splitter(pid_t pid) {
+
+    for (int i = 0; i < num_splitters; i++) {
+        if (splitters[i].pid == pid)
+            return i;
+    }
+    return -1;
 }
 
 void read_from_queue() {
@@ -966,6 +1109,8 @@ void read_from_queue() {
             exit(-1);
         }
 
+        int index = 0;
+
         switch (msg.type)
         {
         case PLANE:
@@ -975,8 +1120,11 @@ void read_from_queue() {
             planes[ msg.data.planes.plane_number ].plane_number = msg.data.planes.plane_number;
             planes[ msg.data.planes.plane_number ].destroyed = msg.data.planes.destroyed;
 
-            if (msg.operation == 1) 
-                num_drops++;
+            if (msg.data.planes.destroyed)
+                plane_collisions++;
+
+            // if (msg.operation == 1)
+            //     num_drops++;
 
             // printf(
             //     "(PLANE) num: %d, amp: %d, refilling: %d, plane_num: %d\n",
@@ -988,15 +1136,37 @@ void read_from_queue() {
             break;
         
         case COLLECTOR:
+            // index = find_collector(msg.data.collector.pid);
+
+            // printf("kfghjkljdfhgkdfjhg: %d, index: %d\n", msg.data.collector.pid, index);
+
+            // collectors[ index ].pid = msg.data.collector.pid;
+            // collectors[ index ].number = msg.data.collector.number;
+            // collectors[ index ].energy = msg.data.collector.energy;
+            // collectors[ index ].containers = msg.data.collector.containers;
+            // collectors[ index ].killed = msg.data.collector.killed;
+
+            collectors[ msg.data.collector.number ].pid = msg.data.collector.pid;
             collectors[ msg.data.collector.number ].number = msg.data.collector.number;
             collectors[ msg.data.collector.number ].energy = msg.data.collector.energy;
             collectors[ msg.data.collector.number ].containers = msg.data.collector.containers;
             collectors[ msg.data.collector.number ].killed = msg.data.collector.killed;
 
+            if (msg.data.collector.killed)
+                killed_collectors++;
+
             if (msg.operation == 2)
                 containers_in_safe_house++;
-            else if (msg.operation == 1)
-                num_drops--;
+            else if (msg.operation == 1) {
+                int drop_on_ground = get_zero_amp();
+
+                // swap...
+                drops[drop_on_ground].number = drops[num_drops-1].number;
+                drops[drop_on_ground].amplitude = drops[num_drops-1].amplitude;
+                drops[drop_on_ground].weight = drops[num_drops-1].weight;
+
+                num_drops--; /* in the sky */
+            }
 
             // printf(
             //     "(COLLECTOR) num: %d, energy: %d, containers: %d, killed: %d\n",
@@ -1005,23 +1175,70 @@ void read_from_queue() {
             //     msg.data.collector.containers,
             //     msg.data.collector.killed
             // );
-
-            if (msg.data.collector.killed)
-                num_collectors--;
             
             break;
 
         case SPLITTER:
-            splitters[ msg.data.splitter.number ].number = msg.data.splitter.number;
-            splitters[ msg.data.splitter.number ].energy = msg.data.splitter.energy;
-            splitters[ msg.data.splitter.number ].weight = msg.data.splitter.weight;
-            splitters[ msg.data.splitter.number ].swapped = msg.data.splitter.swapped;
+            index = msg.data.splitter.number;
 
             if (msg.operation == 1)
                 kg_bags_in_safe_house++;
 
-            if (msg.operation == 2)
+            else if (msg.operation == 2)
                 containers_in_safe_house--;
+
+            else if (msg.operation == 3) {
+                int dead_collector = msg.data.splitter.number;
+                index = find_splitter(msg.data.splitter.pid);
+
+                printf("(DRAWER)---------------------------------- Dead Collector: %d. splitterNum: %d\n", dead_collector, index);
+                splitters[ index ].swapped = true;
+
+                printf("Splitter is swapping--------------------------\n");
+
+                if (dead_collector != -1) {
+                    // change the pid
+                    collectors[dead_collector].pid = splitters[ index ].pid;
+                    collectors[dead_collector].energy = splitters[ index ].energy;
+                    collectors[dead_collector].killed = false;
+                    printf("(DRAWER)----------------------------------\n");
+
+                    for (int i = 0; i < num_splitters; i++) {
+                        printf("-----(SSS)------pid: %d, number: %d, swapped: %d\n", splitters[i].pid, splitters[i].number, splitters[i].swapped);
+                    }
+                    for (int i = 0; i < num_collectors; i++) {
+                        printf("-----(CCC)------pid: %d, number: %d, killed: %d\n", collectors[i].pid, collectors[i].number, collectors[i].killed);
+                    }
+                }
+            }
+            else if (msg.operation == 4) {
+                int dead_distributor = msg.data.splitter.number;
+                index = find_splitter(msg.data.splitter.pid);
+
+                printf("(DRAWER)---------------------------------- Dead Distributor: %d, splitterNum: %d\n", dead_distributor, index);
+                splitters[ index ].swapped = true;
+
+                if (dead_distributor != -1) {
+                    // change the pid
+                    distributors[dead_distributor].pid = splitters[ index ].pid;
+                    distributors[dead_distributor].energy = splitters[ index ].energy;
+                    distributors[dead_distributor].bags = 0;
+                    distributors[dead_distributor].killed = false;
+                    printf("(DRAWER)----------------------------------\n");
+
+                    for (int i = 0; i < num_splitters; i++) {
+                        printf("-----(SSS)------pid: %d, number: %d, swapped: %d\n", splitters[i].pid, splitters[i].number, splitters[i].swapped);
+                    }
+                    for (int i = 0; i < num_distributors; i++) {
+                        printf("-----(DDD)------pid: %d, number: %d, killed: %d\n", distributors[i].pid, distributors[i].number, distributors[i].killed);
+                    }
+                }
+            }
+            splitters[ index ].pid = msg.data.splitter.pid;
+            splitters[ index ].number = msg.data.splitter.number;
+            splitters[ index ].energy = msg.data.splitter.energy;
+            splitters[ index ].weight = msg.data.splitter.weight;
+
 
             // printf(
             //     "(SPLIT) num: %d, energy: %d, Swapped: %d\n",
@@ -1032,10 +1249,14 @@ void read_from_queue() {
             break;
 
         case DISTRIBUTOR:
+            distributors[ msg.data.distributor.number ].pid = msg.data.distributor.pid;
             distributors[ msg.data.distributor.number ].number = msg.data.distributor.number;
             distributors[ msg.data.distributor.number ].energy = msg.data.distributor.energy;
             distributors[ msg.data.distributor.number ].bags = msg.data.distributor.bags;
             distributors[ msg.data.distributor.number ].killed = msg.data.distributor.killed;
+
+            if (msg.data.distributor.killed)
+                killed_distributors++;
 
             if (msg.operation == 1)
                 kg_bags_in_safe_house--;
@@ -1048,13 +1269,10 @@ void read_from_queue() {
             //     msg.data.distributor.killed
             // );
 
-            if (msg.data.splitter.swapped) {
-                num_collectors++;
-            }
             break;
 
         case FAMILY:
-            families[ msg.data.families.number ].number = msg.data.families.number;
+            families[ msg.data.families.number ].number = msg.data.families.number + 1;
             families[ msg.data.families.number ].starvation_rate = msg.data.families.starvation_rate;
             families[ msg.data.families.number ].alive = msg.data.families.alive;
 
@@ -1067,9 +1285,28 @@ void read_from_queue() {
             break;
 
         case SKY:
-            drops[ msg.data.sky.drop_number ].amplitude = msg.data.sky.amplitude;
-            drops[ msg.data.sky.drop_number ].weight = msg.data.sky.weight;
-            drops[ msg.data.sky.drop_number ].number = msg.data.sky.drop_number;
+
+            if (msg.operation == 1) {
+                index = num_drops;    
+                num_drops++;
+            } else {
+                index = find_drop_by_id(msg.data.sky.drop_number);
+            }
+
+            if (index != -1) {
+
+                if (msg.operation == 2) {
+                    drops[index].number = drops[num_drops-1].number;
+                    drops[index].amplitude = drops[num_drops-1].amplitude;
+                    drops[index].weight = drops[num_drops-1].weight;
+                    num_drops--;
+                    destroyed_drops++;
+                } else {
+                    drops[ index ].amplitude = msg.data.sky.amplitude;
+                    drops[ index ].weight = msg.data.sky.weight;
+                    drops[ index ].number = msg.data.sky.drop_number;
+                }
+            }
 
             // printf(
             //     "(SKY) num: %d, amp: %d, weight: %d, num_drops: %d\n",
@@ -1078,6 +1315,14 @@ void read_from_queue() {
             //     msg.data.sky.weight,
             //     msg.data.sky.num_drops
             // );
+            break;
+
+        case SORTER:
+
+            sorter_fam_bags = msg.data.sorter.bags_required;
+            sorter_fam_index = msg.data.sorter.worst_fam_index;
+            sorter_fam_rate = msg.data.sorter.worst_fam_starve_rate;
+
             break;
         }
     }

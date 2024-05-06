@@ -12,6 +12,7 @@ typedef struct {
     long package_type;  /* to whom this package is being sent (type) */
     int weight;         /* in KG */
     int amplitude;      /* height from surface */
+    int number;
 } AidDrop;
 
 
@@ -67,6 +68,7 @@ typedef struct {
     int number;
     int containers;
     bool killed;
+    pid_t pid;
 } GUI_Collector;
 
 typedef struct {
@@ -74,6 +76,7 @@ typedef struct {
     int number;
     int weight;
     bool swapped;
+    pid_t pid;
 } GUI_Splitter;
 
 typedef struct {
@@ -81,6 +84,7 @@ typedef struct {
     int bags;
     int number;
     bool killed;
+    pid_t pid;
 } GUI_Distributor;
 
 typedef struct {
@@ -106,13 +110,14 @@ typedef struct {
             int number;
             int containers;
             bool killed;
+            pid_t pid;
         } collector;
 
         struct {
             int energy;
             int number;
             int weight;
-            bool swapped;
+            pid_t pid;
         } splitter;
 
         struct {
@@ -120,6 +125,7 @@ typedef struct {
             int number;
             int bags;
             bool killed;
+            pid_t pid;
         } distributor;
         
         struct {
@@ -136,32 +142,15 @@ typedef struct {
             bool destroyed;
         } planes;
 
+        struct {
+            int worst_fam_index;
+            int worst_fam_starve_rate;
+            int bags_required;
+        } sorter;
+
     } data;
 
 } MESSAGE;
-
-
-// typedef struct {
-//     long type;
-    
-//     // families
-//     int starvation_rate;
-//     bool alive;
-    
-//     // workers
-//     int energy;
-//     int bags; /* distributor */
-
-//     // drops
-//     int number;
-//     int weight;
-
-//     // planes     
-//     int num_containers;
-//     int plane_number;
-//     int amplitude;
-//     bool refilling;
-// } MESSAGE;
 
 union semun {
     int              val;

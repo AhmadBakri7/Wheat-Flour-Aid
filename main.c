@@ -48,7 +48,7 @@ void time_limit(int sig);
 void program_exit(int sig);
 
 int sky_queue, safe_queue, family_queue, sorter_queue, news_queue, drawer_queue;
-int plane_sem, plane_shmem, sorter_sem, sorter_shmem;
+int plane_sem, plane_shmem, sorter_sem;
 
 bool simulation_finished = false;
 
@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Create or retrieve the shared memory segment
-    if ((plane_shmem = shmget(pshmem_key, 1, IPC_CREAT | 0666)) < 0) {
+    if ((plane_shmem = shmget(pshmem_key, sizeof(AirSpace) * NUM_PLANES, IPC_CREAT | 0666)) < 0) {
         perror("shmget");
         exit(1);
     }
@@ -121,9 +121,6 @@ int main(int argc, char* argv[]) {
     pid_t families[NUM_FAMILIES];         /* pids for all families */
     pid_t sky_process, sorter_process, occupation;
     pid_t drawer;
-
-    // pid_t* all_children[] = {planes, collectors, splitters, distributors, families, &sky_process, &sorter_process, &occupation};
-    // int sizes[] = {NUM_PLANES, NUM_COLLECTORS, NUM_SPLITTERS, NUM_DISTRIBUTORS, NUM_FAMILIES, 1, 1, 1};
 
     // fork planes
     for (int i = 0; i < NUM_PLANES; i++) {
@@ -250,12 +247,13 @@ int main(int argc, char* argv[]) {
 
         if (families[i] == 0) {
             char f_id[20];
-            char msgqueue_id_news[20];
+            char msgqueue_id_news[20], drawer_q[20];
             char STARVATION_RATE_INCREASE[20], STARVATION_RATE_DECREASE[20],
                  INCREASE_ALARM[20], SURVIVAL_THRESHOLD[20], i_char[20], sorter[20];
 
             sprintf(f_id, "%d", family_queue);
             sprintf(msgqueue_id_news, "%d", news_queue);
+            sprintf(drawer_q, "%d", drawer_queue);
             sprintf(STARVATION_RATE_INCREASE, "%d", FAMILIES_STARVATION_RATE_INCREASE);
             sprintf(STARVATION_RATE_DECREASE, "%d", FAMILIES_STARVATION_RATE_DECREASE);
 
@@ -267,7 +265,7 @@ int main(int argc, char* argv[]) {
             execlp(
                 "./families", "families", f_id, FAMILIES_STARVATION_RATE_RANGE, 
                 STARVATION_RATE_INCREASE, STARVATION_RATE_DECREASE, 
-                INCREASE_ALARM, SURVIVAL_THRESHOLD, i_char, sorter, msgqueue_id_news, NULL
+                INCREASE_ALARM, SURVIVAL_THRESHOLD, i_char, sorter, msgqueue_id_news, drawer_q, NULL
             );
             perror("Exec families Error");
             exit(SIGQUIT);
@@ -296,19 +294,20 @@ int main(int argc, char* argv[]) {
     sorter_process = fork();
 
     if (sorter_process == 0) {
-        char f_id[20], s_id[20], msgqueue_id_news[20];
+        char f_id[20], s_id[20];
         char number[20];
         char required_decrease[20];
         char family_decrease[20];
+        char drawer_q[20];
 
         sprintf(f_id, "%d", family_queue);
         sprintf(s_id, "%d", sorter_queue);
-        sprintf(msgqueue_id_news, "%d", news_queue);
+        sprintf(drawer_q, "%d", drawer_queue);
         sprintf(number, "%d", NUM_FAMILIES);
         sprintf(required_decrease, "%d", SORTER_REQUIRED_STARVE_RATE_DECREASE_PERCENTAGE);
         sprintf(family_decrease, "%d", FAMILIES_STARVATION_RATE_DECREASE);
 
-        execlp("./sorter", "sorter", f_id, s_id, number, required_decrease, family_decrease, msgqueue_id_news, NULL);
+        execlp("./sorter", "sorter", f_id, s_id, number, required_decrease, family_decrease, drawer_q, NULL);
         perror("Exec Sorter Error");
         exit(SIGQUIT);
     }
@@ -320,7 +319,6 @@ int main(int argc, char* argv[]) {
         char sky_pid[20];
         char workers[1000];
         char num_workers[20];
-        char sky_parachutes_id[20];
         char brutality[20];
 
         strcpy(workers, "");
@@ -342,10 +340,9 @@ int main(int argc, char* argv[]) {
 
         sprintf(sky_pid, "%d", sky_process);
         sprintf(num_workers, "%d", NUM_COLLECTORS + NUM_DISTRIBUTORS);
-        sprintf(sky_parachutes_id, "%d", sky_queue_key);
         sprintf(brutality, "%d", OCCUPATION_BRUTALITY);
 
-        execlp("./occupation", "occupation", sky_pid, workers, num_workers, sky_parachutes_id, brutality, NULL);
+        execlp("./occupation", "occupation", sky_pid, workers, num_workers, brutality, NULL);
 
         perror("Occupation Exec Error");
         exit(SIGQUIT);
@@ -397,6 +394,7 @@ int main(int argc, char* argv[]) {
             destroyed_planes++;
 
             if (destroyed_planes >= PLANES_DESTROYED_THRESHOLD) {
+                printf("(MAIN) MAX PLANES DESTROYED!!!\n");
                 simulation_finished = true;
                 break;
             }
@@ -409,6 +407,7 @@ int main(int argc, char* argv[]) {
 
             if (martyred_collectors >= COLLECTORS_MARTYRED_THRESHOLD) {
                 simulation_finished = true;
+                printf("(MAIN) MAX COLLECTORS MARTYRED!!!\n");
                 break;
             }
 
@@ -423,9 +422,9 @@ int main(int argc, char* argv[]) {
                 char arguments[1000];
                 
                 sprintf(
-                    arguments, "%d,%d,%s,%s,%d,%d",
+                    arguments, "%d,%d,%s,%d,%d",
                     sky_queue_key, safe_area_key,
-                    WORKERS_ENERGY_DECAY, WORKERS_START_ENERGY,
+                    WORKERS_ENERGY_DECAY,
                     news_queue, report.process_index
                 );
 
@@ -461,6 +460,7 @@ int main(int argc, char* argv[]) {
 
             if (martyred_distributors >= DISTRIBUTORS_MARTYRED_THRESHOLD) {
                 simulation_finished = true;
+                printf("(MAIN) MAX DISTRIBUTORS MARTYRED!!!\n");
                 break;
             }
 
@@ -471,9 +471,15 @@ int main(int argc, char* argv[]) {
                 printf("(MAIN) Switching a random splitter into distributor\n");
 
                 int splitters_distributor_ratio = NUM_SPLITTERS / NUM_DISTRIBUTORS;
+                int switch_splitter_probability;
+                bool make_switch;
 
-                int switch_splitter_probability = (splitters_distributor_ratio * 100) / NUM_DISTRIBUTORS;
-                bool make_switch = select_from_range(1, 100) <= switch_splitter_probability;
+                if (NUM_DISTRIBUTORS == 1)
+                    make_switch = true;
+                else {
+                    switch_splitter_probability = (splitters_distributor_ratio * 100) / NUM_DISTRIBUTORS;
+                    make_switch = select_from_range(1, 100) <= switch_splitter_probability;
+                }
   
                 if (make_switch) {
 
@@ -487,9 +493,9 @@ int main(int argc, char* argv[]) {
                         char arguments[BUFSIZ];
                         
                         sprintf(
-                            arguments, "%d,%s,%d,%d,%s,%d,%d",
+                            arguments, "%d,%s,%d,%d,%d,%d",
                             safe_queue, WORKERS_ENERGY_DECAY,
-                            DISTRIBUTOR_BAGS_TRIP, family_queue, WORKERS_START_ENERGY,
+                            DISTRIBUTOR_BAGS_TRIP, family_queue,
                             news_queue, report.process_index
                         );
 
@@ -533,9 +539,10 @@ int main(int argc, char* argv[]) {
 
             destroyed_containers++;
 
-            if (destroyed_containers >= PACKAGES_DESTROYED_THRESHOLD)
+            if (destroyed_containers >= PACKAGES_DESTROYED_THRESHOLD) {
+                printf("(MAIN) MAX DROPS DESTROYED!!!\n");
                 simulation_finished = true;
-            
+            }
             break;
         
         default:

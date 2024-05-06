@@ -41,8 +41,8 @@ int main(int argc, char *argv[]) {
 
     printf("(Splitter) with pid (%d) is ready to receive container information ...\n",getpid());
 
-    // send info to drawer
-    MESSAGE msg = {SPLITTER, 0, .data.splitter = {energy, my_number, 0, false}};
+    // send info to drawer (initial values)
+    MESSAGE msg = {SPLITTER, 0, .data.splitter = { energy, my_number, 0, getpid()} };
 
     if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
         perror("Child: msgsend");
@@ -55,7 +55,6 @@ int main(int argc, char *argv[]) {
         // Receive a message from the queue
         if (msgrcv(safe_area_id, &received_from_collector, sizeof(AidPackage), CONTAINER, 0) == -1) {
             perror("msgrcv");
-            exit(EXIT_FAILURE);
         }
 
         // Print the received container information
@@ -69,18 +68,17 @@ int main(int argc, char *argv[]) {
 
         for (int i = 0; i < received_from_collector.weight; i++) {
 
-            sleep( get_sleep_duration(energy) );
+            sleep( get_sleep_duration(energy)/2 );
 
             msg.type = SPLITTER;
             msg.operation = 1;
             msg.data.splitter.energy = energy;
             msg.data.splitter.weight = received_from_collector.weight - i;
             msg.data.splitter.number = my_number;
-            msg.data.splitter.swapped = false;
+            msg.data.splitter.pid = getpid();
 
             if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
                 perror("Child: msgsend");
-                exit(-1);
             }
 
             bags[i].package_type = KG_BAG;
@@ -88,7 +86,6 @@ int main(int argc, char *argv[]) {
 
             if (msgsnd(safe_area_id, &bags[i], sizeof(AidPackage), 0) == -1) {
                 perror("msgsnd");
-                exit(EXIT_FAILURE);
             }
             printf(
                 "(SPLITTER) with pid (%d) Sent Bag Information: Type: %ld, Weight: %d to Distributors\n",
@@ -103,14 +100,13 @@ int main(int argc, char *argv[]) {
         msg.data.splitter.energy = energy;
         msg.data.splitter.weight = 0;
         msg.data.splitter.number = my_number;
-        msg.data.splitter.swapped = false;
+        msg.data.splitter.pid = getpid();
 
         if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
             perror("Child: msgsend");
-            exit(-1);
         }
         
-        sleep( get_sleep_duration(energy) );
+        sleep( get_sleep_duration(energy)/2 );
     }
 
     printf("Splitter exited successfully\n");
@@ -136,26 +132,27 @@ void change_to_collector(int sig) {
     char* arg1 = strtok(info.arguments, ",");
     char* arg2 = strtok('\0', ",");
     char* arg3 = strtok('\0', ",");
+
+    char arg4[20];
+    sprintf(arg4, "%d-%d", energy, energy);
+
     char* arg5 = strtok('\0', ",");
     char* arg6 = strtok('\0', ",");
 
     char arg7[20];
     sprintf(arg7, "%d", drawer_queue);
 
-    char arg4[20];
-    sprintf(arg4, "%d-%d", energy, energy);
-
-    printf("(SPLITTER) %d is changing to Collector\n", getpid());
+    printf("(SPLITTER) %d is changing to Collector 5:%s, %s\n", getpid(), arg5, arg6);
     fflush(stdout);
 
-    execlp("./collector", "collector", arg1, arg2, arg3, arg4, arg5, arg6, arg7, NULL);
-
     // send info to drawer
-    MESSAGE msg = {SPLITTER, .data.splitter = {energy, my_number, true}};
+    MESSAGE msg = {SPLITTER, 3, .data.splitter = { energy, atoi(arg6), 0, getpid() }};
 
     if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
         perror("Child: msgsend");
     }
+
+    execlp("./collector", "collector", arg1, arg2, arg3, arg4, arg5, arg6, arg7, NULL);
 
     perror("Exec to collector error in (SPLITTER)");
     exit(SIGQUIT);
@@ -179,20 +176,22 @@ void change_to_distributor(int sig) {
     char* arg2 = strtok('\0', ",");
     char* arg3 = strtok('\0', ",");
     char* arg4 = strtok('\0', ",");
+
+    char arg5[20];
+    sprintf(arg5, "%d-%d", energy, energy);
+
     char* arg6 = strtok('\0', ",");
     char* arg7 = strtok('\0', ",");
 
     char arg8[20];
     sprintf(arg8, "%d", drawer_queue);
 
-    char arg5[20];
-    sprintf(arg5, "%d-%d", energy, energy);
 
     printf("(SPLITTER) %d is changing to Distributor\n", getpid());
     fflush(stdout);
 
     // send info to drawer
-    MESSAGE msg = {SPLITTER, .data.splitter = {energy, my_number, true}};
+    MESSAGE msg = { SPLITTER, 4, .data.splitter = {energy, atoi(arg7), 0, getpid()} };
 
     if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
         perror("Child: msgsend");

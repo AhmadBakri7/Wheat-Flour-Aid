@@ -39,8 +39,8 @@ int main(int argc, char *argv[]) {
     printf("(distributor) with pid (%d) is ready to receive bag information ...\n",getpid());
     fflush(NULL);
 
-    // send info to drawer
-    MESSAGE msg = {DISTRIBUTOR, 0, .data.distributor = {energy, my_number, 0, false}};
+    // send info to drawer (initial values)
+    MESSAGE msg = {DISTRIBUTOR, 0, .data.distributor = {energy, my_number, 0, false, getpid()}};
 
     if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
         perror("Child: msgsend");
@@ -66,8 +66,8 @@ int main(int argc, char *argv[]) {
             fflush(NULL);
             count++;
 
-            // send info to drawer
-            MESSAGE msg = {DISTRIBUTOR, 1, .data.distributor = {energy, my_number, count, false}};
+            // send info to drawer (take bag from safe house)
+            MESSAGE msg = {DISTRIBUTOR, 1, .data.distributor = {energy, my_number, count, false, getpid()}};
 
             if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
                 perror("Child: msgsend");
@@ -114,8 +114,9 @@ int main(int argc, char *argv[]) {
         
             energy -= select_from_range(min_energy_decay, max_energy_decay);
 
-            // send info to drawer
-            MESSAGE msg = {DISTRIBUTOR, 0, .data.distributor = {energy, my_number, count, false}};
+            // send info to drawer (give bags to families)
+            // also send the number of bags given, and to which family
+            MESSAGE msg = {DISTRIBUTOR, 0, .data.distributor = {energy, my_number, count, false, getpid()}};
 
             if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
                 perror("Child: msgsend");
@@ -142,7 +143,7 @@ void got_shot(int sig) {
         printf("Worker %d is killed\n", getpid());
 
         // send info to drawer
-        MESSAGE msg = {DISTRIBUTOR, 0, .data.distributor = {energy, my_number, 0, true}};
+        MESSAGE msg = {DISTRIBUTOR, 0, .data.distributor = {energy, my_number, 0, true, getpid()}};
 
         if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
             perror("Child: msgsend");

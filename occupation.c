@@ -10,14 +10,13 @@ int random_worker;
 
 int main(int argc, char* argv[]) {
 
-    if (argc < 6) {
+    if (argc < 5) {
         perror("Not Enough Args, occupation.c");
         exit(-1);
     }
 
     size = atoi(argv[3]);
-    int msg_queue_id = atoi(argv[4]);
-    int brutality = atoi(argv[5]);
+    int brutality = atoi(argv[4]);
 
     pid_t sky_pid = atoi(argv[1]);
     workers = (pid_t*) malloc(sizeof(pid_t) * size);
@@ -50,6 +49,12 @@ int main(int argc, char* argv[]) {
             kill(sky_pid, SIGUSR1); // missile
             printf("Occupation shooting a missile at packages\n");
             fflush(stdout);
+        }
+
+        sleep(1);
+        commit_war_crime = ( select_from_range(1, 100) ) <= brutality;
+
+        if (commit_war_crime) {
 
             // kill a worker
             if (size > 0) {
@@ -59,8 +64,6 @@ int main(int argc, char* argv[]) {
                 printf("Occupation shooting at worker %d\n", workers[random_worker]);
                 fflush(stdout);
             }
-
-            sleep(1);
         }
     }
     free(workers);

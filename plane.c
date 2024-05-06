@@ -205,7 +205,7 @@ bool check_collision(int plane_amplitude, int max_planes, int safe_distance, int
         }
     }
 
-    int collision_probability = (count * 5) * (count > 1);
+    int collision_probability = (count * 10) * (count > 1);
     bool collide = select_from_range(1, 100) <= collision_probability;
 
     if (collide) {
@@ -240,8 +240,6 @@ void write_Plane_info(int plane_amplitude, int plane_number) {
 }
 
 void cleanup(int sig) {
-
-    printf("I Crashed----%d-----------------------------\n", plane_number);
 
     write_Plane_info(0, plane_number);
 
