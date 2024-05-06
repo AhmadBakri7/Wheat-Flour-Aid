@@ -44,7 +44,6 @@ int main(int argc, char *argv[]) {
 
     if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
         perror("Child: msgsend");
-        return 4;
     }
 
     AidPackage bags[ DISTRIBUTOR_BAGS_TRIP_hold ];
@@ -56,7 +55,6 @@ int main(int argc, char *argv[]) {
     
             if (msgrcv(safe_queue, &bags[i], sizeof(AidPackage), KG_BAG, 0) == -1) {
                 perror("msgrcv ddddd");
-                exit(EXIT_FAILURE);
             }
 
             printf(
@@ -71,7 +69,6 @@ int main(int argc, char *argv[]) {
 
             if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
                 perror("Child: msgsend");
-                return 4;
             }
         }
 
@@ -88,7 +85,6 @@ int main(int argc, char *argv[]) {
 
             if (msgrcv(family_queue, &worst_family, sizeof(familyCritical), SORTER_VALUE, 0) == -1) {
                 perror("msgrcv fffff");
-                exit(EXIT_FAILURE);
             }
 
             printf("-----(Distributor) Has Received the most starving family from (sorter), bags: %d-------, index %d\n", 
@@ -102,7 +98,6 @@ int main(int argc, char *argv[]) {
 
             if (msgsnd(family_queue, &bags[count-1], sizeof(AidPackage), 0) == -1) {
                 perror("msgsnd");
-                exit(EXIT_FAILURE);
             }
             count -= sent_bags;
 
@@ -119,7 +114,6 @@ int main(int argc, char *argv[]) {
 
             if (msgsnd(drawer_queue, &msg, sizeof(msg), 0) == -1 ) {
                 perror("Child: msgsend");
-                return 4;
             }
 
             sleep( get_sleep_duration(energy) );

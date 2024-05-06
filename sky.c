@@ -119,23 +119,21 @@ void missile_attack(int sig) {
             perror("Child: msgsend");
             exit(4);
         }
+        printf("(SKY) Destroyed package (%d) has now weight: %d\n", drops[random_drop].number, drops[random_drop].weight);
 
         // swap drops[i] with current_drop (last drop) (soft delete).
         drops[random_drop].package_type = drops[current_drop-1].package_type;
         drops[random_drop].weight = drops[current_drop-1].weight;
         drops[random_drop].amplitude = drops[current_drop-1].amplitude;
+        drops[random_drop].number = drops[current_drop-1].number;
 
         current_drop--;
-        printf("(SKY) Destroyed package (%d) has now weight: %d\n", random_drop, drops[random_drop].weight);
 
         alert_news(news_queue, SKY, random_drop);
 
-    } else if (drops[random_drop].amplitude > 300 && drops[random_drop].amplitude < threshold) {
+    } else if (drops[random_drop].amplitude > 300 && drops[random_drop].amplitude <= threshold) {
         drops[random_drop].weight /= 3;
-        drops[random_drop].amplitude -= 100;
         printf("Destroyed package (%d) has now weight: %d\n", random_drop, drops[random_drop].weight);
-
-        alert_news(news_queue, SKY, random_drop);
 
         // send info to drawer (Drop has reached the ground now)
         MESSAGE msg = {SKY, 3, .data.sky = {drops[random_drop].number, drops[random_drop].weight, drops[random_drop].amplitude}};
@@ -145,12 +143,9 @@ void missile_attack(int sig) {
             exit(4);
         }
 
-    } else if (drops[random_drop].amplitude > 100 && drops[random_drop].amplitude < 300) {
+    } else if (drops[random_drop].amplitude > 100 && drops[random_drop].amplitude <= 300) {
         drops[random_drop].weight /= 2;
-        drops[random_drop].amplitude -= 100;
         printf("Destroyed package (%d) has now weight: %d\n", random_drop, drops[random_drop].weight);
-
-        alert_news(news_queue, SKY, random_drop);
 
         // send info to drawer (Drop has reached the ground now)
         MESSAGE msg = {SKY, 3, .data.sky = {drops[random_drop].number, drops[random_drop].weight, drops[random_drop].amplitude}};

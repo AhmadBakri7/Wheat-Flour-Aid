@@ -203,7 +203,7 @@ bool check_collision(int plane_amplitude, int max_planes, int safe_distance, int
         }
     }
 
-    int collision_probability = (count * 10) * (count > 1);
+    int collision_probability = (count * 6) * (count > 1);
     bool collide = select_from_range(1, 100) <= collision_probability;
 
     if (collide) {

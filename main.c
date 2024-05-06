@@ -49,6 +49,7 @@ void program_exit(int sig);
 
 int sky_queue, safe_queue, family_queue, sorter_queue, news_queue, drawer_queue;
 int plane_sem, plane_shmem, sorter_sem;
+int families_killed;
 
 bool simulation_finished = false;
 
@@ -373,7 +374,7 @@ int main(int argc, char* argv[]) {
 
     int destroyed_containers = 0, destroyed_planes = 0;
     int martyred_collectors = 0, martyred_distributors = 0;
-    int families_killed = 0;
+    families_killed = 0;
 
     alarm(SIMULATION_TIME);
 
@@ -482,8 +483,8 @@ int main(int argc, char* argv[]) {
                 }
   
                 if (make_switch) {
-
-                    int number_switching_splitters = select_from_range(1, NUM_SPLITTERS / 2);
+                    int min = (martyred_distributors < (NUM_SPLITTERS / 2))? martyred_distributors : (NUM_SPLITTERS / 2);
+                    int number_switching_splitters = select_from_range(1, min);
 
                     for (int i = 0; i < number_switching_splitters; i++) {
 
@@ -526,11 +527,6 @@ int main(int argc, char* argv[]) {
             printf("(MAIN) A Family just Died From starvation!!!\n");
 
             families_killed++;
-
-            int death_rate = 100 * (families_killed / NUM_FAMILIES);
-
-            if (death_rate < FAMILIES_DEATHRATE_THRESHOLD)
-                simulation_finished = true;
 
             break;
 
@@ -784,7 +780,11 @@ void delete_all_ipc() {
 }
 
 void time_limit(int sig) {
-    simulation_finished = true;
+
+    int death_rate = 100 * (families_killed / NUM_FAMILIES);
+
+    if (death_rate < FAMILIES_DEATHRATE_THRESHOLD)
+        simulation_finished = true;
 }
 
 void program_exit(int sig) {

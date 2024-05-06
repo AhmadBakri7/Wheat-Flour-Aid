@@ -404,7 +404,7 @@ void drawOccupation(float x, float y) {
 
 void drawSorter(float x, float y) {
     // Set player color
-    glColor3f(1.0f, 0.0f, 0.0f); // Set color to orange
+    glColor3f(0.0f, 1.0f, 0.0f); // Set color to green
 
     // Draw head
     glLineWidth(1.5);
@@ -1218,7 +1218,7 @@ void read_from_queue() {
             if (msg.data.distributor.killed)
                 killed_distributors++;
 
-            if (msg.operation == 1)
+            if (msg.operation == 1 && kg_bags_in_safe_house > 0)
                 kg_bags_in_safe_house--;
 
             break;
@@ -1233,27 +1233,23 @@ void read_from_queue() {
         case SKY:
 
             if (msg.operation == 1) {
-                index = num_drops;    
+                index = num_drops;
                 num_drops++;
             } else {
                 index = find_drop_by_id(msg.data.sky.drop_number);
             }
 
-            if (index != -1) {
-
-                if (msg.operation == 2) {
-                    drops[index].number = drops[num_drops-1].number;
-                    drops[index].amplitude = drops[num_drops-1].amplitude;
-                    drops[index].weight = drops[num_drops-1].weight;
-                    num_drops--;
-                } else {
-                    drops[ index ].amplitude = msg.data.sky.amplitude;
-                    drops[ index ].weight = msg.data.sky.weight;
-                    drops[ index ].number = msg.data.sky.drop_number;
-                }
-
-                if (msg.operation == 2 || msg.operation == 3)
-                    destroyed_drops++;
+            if (msg.operation == 2) {
+                printf("Drops is totally lost -----------%d--------%d\n", num_drops, drops[index].number);
+                drops[index].number = drops[num_drops-1].number;
+                drops[index].amplitude = drops[num_drops-1].amplitude;
+                drops[index].weight = drops[num_drops-1].weight;
+                num_drops--;
+                destroyed_drops++;
+            } else {
+                drops[ index ].amplitude = msg.data.sky.amplitude;
+                drops[ index ].weight = msg.data.sky.weight;
+                drops[ index ].number = msg.data.sky.drop_number;
             }
             break;
 

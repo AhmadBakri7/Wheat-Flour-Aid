@@ -110,6 +110,11 @@ void increment_starvation_rate (int sig) {
     } else{
         printf("(family) index %d, with starvation rate %d (just died)\n", family_index, starvation_rate);
 
+        familia.starvationRate = 0;
+        familia.familyIndex = (long) family_index;
+
+        msgsnd(sorter_queue, &familia, sizeof(familyStruct), 0);
+
         alert_news(news_queue, FAMILY, family_index);
 
         // send info to drawer (death)
